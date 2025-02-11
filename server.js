@@ -14,6 +14,16 @@ app.use(cors());
 // Middleware
 app.use(bodyParser.json());
 
+
+// Welcome route for base endpoint
+app.get('/', (req, res) => {
+  res.send('Welcome to Mahjon API 😊');
+});
+
+app.post('/', (req, res) => {
+  res.send('Welcome to Mahjon API 😊');
+});
+
 // Welcome route for base endpoint
 app.get('/api', (req, res) => {
   res.send('Welcome to Mahjon API 😊');
