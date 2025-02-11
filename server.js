@@ -15,16 +15,16 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Welcome route for base endpoint
-app.get('/mahjon', (req, res) => {
+app.get('/api', (req, res) => {
   res.send('Welcome to Mahjon API 😊');
 });
 
-app.post('/mahjon', (req, res) => {
+app.post('/api', (req, res) => {
   res.send('Welcome to Mahjon API 😊');
 });
 
 // User routes
-app.use('/mahjon', authRoutes);
+app.use('/api/auth', authRoutes);
 
 
 
