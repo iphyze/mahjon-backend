@@ -1,6 +1,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import authRoutes from './routes/authRoutes.js'
+import usersRoutes from './routes/usersRoutes.js'
 import dotenv from 'dotenv';
 import cors from 'cors';
 
@@ -33,9 +34,15 @@ app.post('/api', (req, res) => {
   res.send('Welcome to Mahjon API 😊');
 });
 
-// User routes
+
+
+
+
+// Auth routes
 app.use('/api/auth', authRoutes);
 
+// Users routes
+app.use('/api/users', usersRoutes);
 
 
 // Server

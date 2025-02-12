@@ -81,46 +81,43 @@ export const createUser = async (req, res) => {
         updatedBy, createdAt, updatedAt) 
         VALUES (?, ?, ?, ?, ?, ?, 'User', 0, ?, ?, ?, ?, ?, ?)`;
 
-      db.query(
-        insertUserQuery,
-        [firstName, lastName, sanitizedEmail, hashedPassword, country_code, number, emailCode, expiresAt, email, email, timestamp, timestamp],
-        async (err, result) => {
-          if (err) return res.status(500).json({ message: 'Error creating user', error: err });
-
-          try {
-            await sendVerificationEmail(sanitizedEmail, emailCode, expiresAt, firstName);
-          } catch (emailError) {
-            return res.status(500).json({ message: 'User created but failed to send verification email', error: emailError.message });
+        db.query(
+          insertUserQuery,
+          [firstName, lastName, sanitizedEmail, hashedPassword, country_code, number, emailCode, expiresAt, email, email, timestamp, timestamp],
+          async (err, result) => {
+            if (err) return res.status(500).json({ message: 'Error creating user', error: err });
+  
+            const emailSent = await sendVerificationEmail(sanitizedEmail, emailCode, expiresAt, firstName);
+  
+            const token = jwt.sign(
+              { sub: number, email: sanitizedEmail },
+              process.env.JWT_SECRET,
+              { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+            );
+  
+            res.status(200).json({
+              message: emailSent
+                ? 'User registration was successful. Kindly verify your email!'
+                : 'User registration was successful, however we were not able to verify your email!.',
+              data: {
+                id: result.insertId,
+                firstName,
+                lastName,
+                email: sanitizedEmail,
+                isEmailVerified: false,
+                emailVerification: { emailCode, expiresAt },
+                role: 'User',
+                token,
+                country_code,
+                number,
+                createdAt: timestamp,
+                updatedBy: email,
+              },
+            });
           }
-
-
-          const token = jwt.sign(
-            { sub: number, email: sanitizedEmail },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
-          );
-
-          res.status(200).json({
-            message: 'User created successfully',
-            data: {
-              id: result.insertId,
-              firstName,
-              lastName,
-              email: sanitizedEmail,
-              isEmailVerified: false,
-              emailVerification: { emailCode, expiresAt },
-              role: 'User',
-              token,
-              country_code,
-              number,
-              createdAt: timestamp,
-              updatedBy: email,
-            },
-          });
-        }
-      );
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
+        );
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  };
