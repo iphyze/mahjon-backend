@@ -3,8 +3,48 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { check, validationResult } from 'express-validator';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+
+const sendVerificationEmail = async (to, emailCode, expiresAt, firstName) => {
+  const mailOptions = {
+    from: '"Your App Name" <you@yourdomain.com>', // Sender address
+    to, // Recipient email
+    subject: 'Verify Your Email Address',
+    html: `
+      <h1>Email Verification</h1>
+      <p>Hi ${firstName},</p>
+      <p>Thank you for registering. Please use the following code to verify your email:</p>
+      <h2>${emailCode}</h2>
+      <p>This code will expire on: <b>${expiresAt}</b>.</p>
+      <p>If you did not request this, please ignore this email.</p>
+      <p>Thanks,</p>
+      <p>Your App Team</p>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Verification email sent to ${to}`);
+  } catch (error) {
+    console.error(`Error sending email to ${to}:`, error);
+    throw new Error('Failed to send verification email');
+  }
+};
+
+
 
 // Validation rules
 export const validateUserRegistration = [
@@ -44,8 +84,15 @@ export const createUser = async (req, res) => {
       db.query(
         insertUserQuery,
         [firstName, lastName, sanitizedEmail, hashedPassword, country_code, number, emailCode, expiresAt, email, email, timestamp, timestamp],
-        (err, result) => {
+        async (err, result) => {
           if (err) return res.status(500).json({ message: 'Error creating user', error: err });
+
+          try {
+            await sendVerificationEmail(sanitizedEmail, emailCode, expiresAt, firstName);
+          } catch (emailError) {
+            return res.status(500).json({ message: 'User created but failed to send verification email', error: emailError.message });
+          }
+
 
           const token = jwt.sign(
             { sub: number, email: sanitizedEmail },
@@ -53,7 +100,7 @@ export const createUser = async (req, res) => {
             { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
           );
 
-          res.status(201).json({
+          res.status(200).json({
             message: 'User created successfully',
             data: {
               id: result.insertId,
