@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { loginHandler, registerUser} from '../controllers/authController.js';
+import { loginHandler, registerUser, sendVerificationCode, verifyEmailHandler, forgotPasswordHandler, updatePasswordHandler} from '../controllers/authController.js';
 import {verifyToken} from '../middleware/authMiddleware.js'
-import { validateUserRegistration } from '../services/users/createUserService.js';
+import { validateUserRegistration, validateForgotPassword, validateUpdatePassword, validateEmail } from '../services/users/authService.js';
 
 
 const router = Router();
@@ -9,9 +9,10 @@ const router = Router();
 
 router.post('/login', loginHandler);
 router.post('/register', validateUserRegistration, registerUser);
-
-// Update user
-// router.put('/update/:id', verifyToken, updateUser);
+router.post('/sendVerificationCode', validateEmail, sendVerificationCode);
+router.post('/verifyEmail', validateEmail, verifyEmailHandler);
+router.post('/forgotPassword', validateForgotPassword, forgotPasswordHandler);
+router.put('/updatePassword/:id', verifyToken, validateUpdatePassword, updatePasswordHandler);
 
 
 export default router;
