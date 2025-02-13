@@ -91,19 +91,24 @@ export const createUser = async (req, res) => {
     const emailCode = Math.floor(1000 + Math.random() * 9000);
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
+    const [baseName, domain] = sanitizedEmail.split('@');
+    const domainInitial = domain[0].toLowerCase(); // First letter of the domain
+    const userName = `${baseName}-${domainInitial}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+
     const checkUserQuery = 'SELECT id FROM users WHERE email = ? OR number = ?';
     db.query(checkUserQuery, [sanitizedEmail, number], (err, results) => {
       if (err) return res.status(500).json({ message: 'Database error', error: err });
       if (results.length > 0) return res.status(400).json({ message: 'User already exists' });
 
       const insertUserQuery = `INSERT INTO users 
-        (firstName, lastName, email, password, country_code, number, role, isEmailVerified, emailCode, expiresAt, createdBy, 
+        (firstName, lastName, email, userName, password, country_code, number, role, isEmailVerified, emailCode, expiresAt, createdBy, 
         updatedBy, createdAt, updatedAt) 
-        VALUES (?, ?, ?, ?, ?, ?, 'User', 0, ?, ?, ?, ?, ?, ?)`;
+        VALUES (?, ?, ?, ?, ?, ?, 'User', 0, ?, ?, ?, ?, ?, ?, ?)`;
 
         db.query(
           insertUserQuery,
-          [firstName, lastName, sanitizedEmail, hashedPassword, country_code, number, emailCode, expiresAt, email, email, timestamp, timestamp],
+          [firstName, lastName, sanitizedEmail, userName, hashedPassword, country_code, number, emailCode, expiresAt, email, email, timestamp, timestamp],
           async (err, result) => {
             if (err) return res.status(500).json({ message: 'Error creating user', error: err });
   
@@ -124,6 +129,7 @@ export const createUser = async (req, res) => {
                 firstName,
                 lastName,
                 email: sanitizedEmail,
+                userName: userName,
                 isEmailVerified: false,
                 emailVerification: { emailCode, expiresAt },
                 role: 'User',
@@ -206,7 +212,7 @@ export const createUser = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    
+
     const { email } = req.body;
   
     // Check if email is provided
