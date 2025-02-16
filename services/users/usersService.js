@@ -3,72 +3,51 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-export const getAllUsers = async (req, res) => {
+export const getAllUsers = (req, res) => {
   const getUsersQuery = 'SELECT * FROM users';
 
-  try {
-    // Wrap the query in a promise for better error handling
-    const results = await new Promise((resolve, reject) => {
-      db.query(getUsersQuery, (err, results) => {
-        if (err) {
-          console.error('Query error:', {
-            message: err.message,
-            code: err.code,
-            sqlState: err.sqlState,
-            sql: err.sql // This will show the actual query that failed
-          });
-          reject(err);
-          return;
-        }
-        resolve(results);
-      });
-    });
+  db.query(getUsersQuery, (err, results) => {
+    if (err) {
+      // console.error('Database error:', err);
+      // return res.status(500).json({ message: 'Database error', error: err });
 
-    if (!results || results.length === 0) {
+      console.error('Database error details:', {
+        message: err.message,
+        code: err.code,
+        errno: err.errno,
+        sqlState: err.sqlState
+      });
+      return res.status(500).json({ 
+        message: 'Database error', 
+        error: err.message,
+        code: err.code 
+      });
+    }
+
+    if (results.length === 0) {
       return res.status(404).json({ message: 'No users found' });
     }
 
     // Map through the results to return the desired structure
-    const users = results.map((user) => {
-      try {
-        return {
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          isEmailVerified: user.isEmailVerified,
-          emailVerification: { 
-            emailCode: user.emailCode, 
-            expiresAt: user.expiresAt 
-          },
-          role: user.role,
-          country_code: user.country_code,
-          number: user.number,
-          createdAt: user.createdAt,
-          updatedBy: user.updatedBy,
-        };
-      } catch (err) {
-        console.error('Error mapping user:', user, err);
-        return null;
-      }
-    }).filter(Boolean); // Remove any null entries from mapping errors
+    const users = results.map((user) => ({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      isEmailVerified: user.isEmailVerified,
+      emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
+      role: user.role,
+      country_code: user.country_code,
+      number: user.number,
+      createdAt: user.createdAt,
+      updatedBy: user.updatedBy,
+    }));
 
     res.status(200).json({
       message: 'Users retrieved successfully',
       data: users,
     });
-
-  } catch (err) {
-    // Send more detailed error information
-    return res.status(500).json({ 
-      message: 'Database error', 
-      error: {
-        message: err.message,
-        code: err.code,
-        state: err.sqlState
-      }
-    });
-  }
+  });
 };
 
 
