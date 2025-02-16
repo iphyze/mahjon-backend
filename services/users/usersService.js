@@ -8,7 +8,20 @@ export const getAllUsers = (req, res) => {
 
   db.query(getUsersQuery, (err, results) => {
     if (err) {
-      return res.status(500).json({ message: 'Database error', error: err });
+      // console.error('Database error:', err);
+      // return res.status(500).json({ message: 'Database error', error: err });
+
+      console.error('Database error details:', {
+        message: err.message,
+        code: err.code,
+        errno: err.errno,
+        sqlState: err.sqlState
+      });
+      return res.status(500).json({ 
+        message: 'Database error', 
+        error: err.message,
+        code: err.code 
+      });
     }
 
     if (results.length === 0) {
