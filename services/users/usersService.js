@@ -3,113 +3,55 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// export const getAllUsers = (req, res) => {
-//   const getUsersQuery = 'SELECT * FROM users';
+export const getAllUsers = (req, res) => {
+  const getUsersQuery = 'SELECT * FROM users';
 
-//   db.query(getUsersQuery, (err, results) => {
-//     if (err) {
-//       // console.error('Database error:', err);
-//       // return res.status(500).json({ message: 'Database error', error: err });
+  db.query(getUsersQuery, (err, results) => {
+    if (err) {
+      // console.error('Database error:', err);
+      // return res.status(500).json({ message: 'Database error', error: err });
 
-//       console.error('Database error details:', {
-//         message: err.message,
-//         code: err.code,
-//         errno: err.errno,
-//         sqlState: err.sqlState
-//       });
-//       return res.status(500).json({ 
-//         message: 'Database error', 
-//         error: err.message,
-//         code: err.code 
-//       });
-//     }
-
-//     if (results.length === 0) {
-//       return res.status(404).json({ message: 'No users found' });
-//     }
-
-//     // Map through the results to return the desired structure
-//     const users = results.map((user) => ({
-//       id: user.id,
-//       firstName: user.firstName,
-//       lastName: user.lastName,
-//       email: user.email,
-//       isEmailVerified: user.isEmailVerified,
-//       emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
-//       role: user.role,
-//       country_code: user.country_code,
-//       number: user.number,
-//       createdAt: user.createdAt,
-//       updatedBy: user.updatedBy,
-//     }));
-
-//     res.status(200).json({
-//       message: 'Users retrieved successfully',
-//       data: users,
-//     });
-//   });
-// };
-
-
-// Fetch individual user by ID
-
-
-export const getAllUsers = async (req, res) => {
-  try {
-    const getUsersQuery = 'SELECT * FROM users';
-
-    // Execute the query
-    db.query(getUsersQuery, (err, results) => {
-      if (err) {
-        console.error('Database error details:', {
-          message: err.message,
-          code: err.code,
-          errno: err.errno,
-          sqlState: err.sqlState,
-        });
-        return res.status(500).json({ 
-          message: 'Database error', 
-          error: err.message, 
-          code: err.code 
-        });
-      }
-
-      if (results.length === 0) {
-        return res.status(404).json({ message: 'No users found' });
-      }
-
-      // Map through the results to return the desired structure
-      const users = results.map((user) => ({
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        isEmailVerified: user.isEmailVerified,
-        emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
-        role: user.role,
-        country_code: user.country_code,
-        number: user.number,
-        createdAt: user.createdAt,
-        updatedBy: user.updatedBy,
-      }));
-
-      res.status(200).json({
-        message: 'Users retrieved successfully',
-        data: users,
+      console.error('Database error details:', {
+        message: err.message,
+        code: err.code,
+        errno: err.errno,
+        sqlState: err.sqlState
       });
+      return res.status(500).json({ 
+        message: 'Database error', 
+        error: err.message,
+        code: err.code 
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'No users found' });
+    }
+
+    // Map through the results to return the desired structure
+    const users = results.map((user) => ({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      isEmailVerified: user.isEmailVerified,
+      emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
+      role: user.role,
+      country_code: user.country_code,
+      number: user.number,
+      createdAt: user.createdAt,
+      updatedBy: user.updatedBy,
+    }));
+
+    res.status(200).json({
+      message: 'Users retrieved successfully',
+      data: users,
     });
-  } catch (error) {
-    // Handle unexpected synchronous errors
-    console.error('Unexpected error:', error);
-    res.status(500).json({
-      message: 'An unexpected error occurred',
-      error: error.message,
-    });
-  }
+  });
 };
 
 
-
+// Fetch individual user by ID
 export const getUserById = (req, res) => {
     const { id } = req.params; // Extract ID from request parameters
     const getUserQuery = 'SELECT * FROM users WHERE id = ?';
