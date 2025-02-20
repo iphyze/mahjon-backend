@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { check, validationResult } from 'express-validator';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
-import { passwordResetTemplate, emailVerificationTemplate, passwordVerifyTemplate } from '../../utils/emailTemplates.js';
+import { passwordResetTemplate, emailVerificationTemplate, passwordVerifyTemplate, sendEmailVerificationTemplate } from '../../utils/emailTemplates.js';
 
 dotenv.config();
 
@@ -23,10 +23,34 @@ const transporter = nodemailer.createTransport({
 
 const sendVerificationEmail = async (to, emailCode, expiresAt, firstName) => {
   const mailOptions = {
-    from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
+    // from: '"Mahjong Nigeria Clinic" <noreply@yourdomain.com>',
+    // from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
+    from: '"Mahjong Nigeria Clinic" <' + process.env.SMTP_USER + '>',
+    to,
+    subject: 'Welcome / Email Verification',
+    html: emailVerificationTemplate(firstName, emailCode, expiresAt),
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Verification email sent to ${to}: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    console.error(`Error sending email to ${to}:`, error);
+    return false;
+  }
+};
+
+
+
+const resendVerificationEmailHandler = async (to, emailCode, expiresAt, firstName) => {
+  const mailOptions = {
+    // from: '"Mahjong Nigeria Clinic" <noreply@yourdomain.com>',
+    // from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
+    from: '"Mahjong Nigeria Clinic" <' + process.env.SMTP_USER + '>',
     to,
     subject: 'Verify Your Email Address',
-    html: emailVerificationTemplate(firstName, emailCode, expiresAt),
+    html: sendEmailVerificationTemplate(firstName, emailCode, expiresAt),
   };
 
   try {
@@ -301,7 +325,7 @@ export const createUser = async (req, res) => {
         }
     
         // Use the sendVerificationEmail function instead of duplicating code
-        const emailSent = await sendVerificationEmail(email, emailCode, expiresAt, user.firstName);
+        const emailSent = await resendVerificationEmailHandler(email, emailCode, expiresAt, user.firstName);
         
         if (emailSent) {
           res.status(200).json({

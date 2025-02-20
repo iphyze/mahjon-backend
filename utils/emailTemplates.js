@@ -131,105 +131,169 @@ export const passwordResetTemplate = (firstName, newPassword) => {
  * @returns {string} HTML email template
  */
 export const emailVerificationTemplate = (firstName, emailCode, expiresAt) => {
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Verification</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"/>
+    <title>New User Email</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            color: #333333;
+            background-color: #fffcfd;
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 40px 20px;
+            justify-content: center;
+            align-items: center;
+            display: flex;
+            flex-direction: column;
         }
-        .email-container {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-        }
-        .email-header {
-            background-color: #2ecc71;
-            color: white;
-            padding: 20px;
+        .mail-container {
+            width: 26rem;
+            background-color: white;
+            box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02);
+            padding: 50px 20px;
             text-align: center;
         }
-        .email-body {
-            padding: 30px;
-            background-color: #ffffff;
+        .logo-img{
+            position: relative;
+            width: 200px;
+            height: auto;
+            margin: 20px auto;
+            margin-bottom: 20px;
+            display: block;
         }
-        .code-container {
-            background-color: #f5f5f5;
-            border: 1px dashed #cccccc;
-            border-radius: 4px;
-            padding: 15px;
-            margin: 20px 0;
+        .hi-user{
+            position: relative;
+            width: 100%;
+            margin-bottom: 5px;
             text-align: center;
-            font-size: 24px;
-            letter-spacing: 3px;
-            font-family: monospace;
+            font-size: 20px;
+            color: #621d1f !important;
         }
-        .expiry-notice {
-            font-size: 14px;
-            color: #777;
-            text-align: center;
-            margin-top: 10px;
+        .hi-user-span{
+            font-weight: 700;
         }
-        .footer {
-            background-color: #f9f9f9;
-            padding: 20px;
+        .hi-user{
+            position: relative;
+            width: 100%;
             text-align: center;
+            font-size: 20px;
+        }
+        .hi-user-subtext{
+            position: relative;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #621d1f !important;
+        }
+        .welcome-img{
+            position: relative;
+            width: 180px;
+            height: auto;
+            margin: 10px auto;
+            display: block;
+        }
+        .code-text{
+            position: relative;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+            color: rgb(86, 86, 86) !important;
+            font-size: 16px;
+        }
+        .code-number{
+            position: relative;
+            width: 50%;
+            margin: 20px auto;
+            background-color:#fbf3f4 !important;
+            color: #ac1d21 !important;
+            text-align: center;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 600;
+            border: 1px solid #ac1d21 !important;
+        }
+        .code-expiry{
+            position: relative;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+            color: rgb(86, 86, 86) !important;
             font-size: 12px;
-            color: #777777;
         }
-        h1 {
-            margin-top: 0;
-            color: #ffffff;
+        .mail-container-two{
+            width: 26rem;
+            position: relative;
+            background-color: #faf0f0 !important;
+            box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02) !important;
+            padding: 50px 20px;
+            text-align: center;
         }
-        .logo {
-            margin-bottom: 10px;
-            font-size: 24px;
-            font-weight: bold;
+        .mail-text{
+            position: relative;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #ac1d21 !important;
+        }
+        .footer{
+            width: 26rem;
+            position: relative;
+            text-align: center;
+            background-color: #621d1f !important;
+            padding: 50px 20px;
+        }
+        .footer p{
+            position: relative;
+            text-align: center;
+            font-size: 14px;
+            color: white;
         }
     </style>
 </head>
 <body>
-    <div class="email-container">
-        <div class="email-header">
-            <div class="logo">Your App Name</div>
-            <h1>Verify Your Email</h1>
+
+    <img src="https://mahjon-db.goldenrootscollectionsltd.com/images/email-image.png" alt="img" class="welcome-img">
+    
+    <div class="hi-user">Congratulation <span class="hi-user-span">${firstName}</span>,</div>
+    <div class="hi-user-subtext">Your Mahjong Clinic App profile has been created</div>
+    
+    <div class="mail-container">
+        <img src="https://mahjon-db.goldenrootscollectionsltd.com/images/splash-logo.png" alt="logo-img" class="logo-img"/>
+        
+        <div class="code-text">
+            Thank you for registering with us! To complete your account setup. please use the
+            verification code below:
         </div>
-        <div class="email-body">
-            <p>Hi ${firstName},</p>
-            
-            <p>Thank you for registering with us! To complete your account setup, please use the verification code below:</p>
-            
-            <div class="code-container">
-                <strong>${emailCode}</strong>
-            </div>
-            
-            <p class="expiry-notice">This code will expire on: <b>${new Date(expiresAt).toLocaleString()}</b></p>
-            
-            <p>If you did not create an account with us, please ignore this email.</p>
-            
-            <p>Thank you for choosing our service.</p>
-            
-            <p>Best regards,<br>The Your App Team</p>
-        </div>
-        <div class="footer">
-            <p>This is an automated message, please do not reply directly to this email.</p>
-            <p>© 2025 Your App Name. All rights reserved.</p>
-            <p>123 App Street, Tech City, TC 12345</p>
+        <div class="code-number">${emailCode}</div>
+        <div class="code-expiry">
+            This code will expire on ${new Date(expiresAt).toLocaleString()}, please ensure to
+            verify your email before the time of expiration.
         </div>
     </div>
+
+    <div class="mail-container-two">
+        <div class="mail-text">If you did not create an account with us, please ignore this email.</div>
+        <div class="mail-text">Thank you for choosing our service.</div>
+        <div class="mail-text">Best regards,</div>
+        <div class="mail-text">Mahjong Clinic App Team</div>
+    </div>
+
+    <div class="footer">
+        <p>This is an automated message, please do not reply directly to this email.</p>
+        <p>© 2025 Mahjong Clinic Nigeria. All rights reserved.</p>
+        <p>Developer | iphysdynamix</p>
+    </div>
 </body>
-</html>
-  `;
+</html>`
 };
 
 
@@ -357,3 +421,179 @@ export const passwordVerifyTemplate = (firstName) => {
 </html>
     `;
   };
+
+
+
+
+  /**
+  * Email template for email verification
+  * @param {string} firstName - User's first name
+  * @param {string} emailCode - Verification code
+  * @param {Date} expiresAt - Expiration date
+  * @returns {string} HTML email template
+  */
+ export const sendEmailVerificationTemplate = (firstName, emailCode, expiresAt) => {
+   return `<!DOCTYPE html>
+ <html lang="en">
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"/>
+     <title>Verify Your Email</title>
+     <style>
+         body {
+             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+             line-height: 1.6;
+             background-color: #fffcfd;
+             max-width: 600px;
+             margin: 0 auto;
+             padding: 40px 20px;
+             justify-content: center;
+             align-items: center;
+             display: flex;
+             flex-direction: column;
+         }
+         .mail-container {
+             width: 26rem;
+             background-color: white;
+             box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02);
+             padding: 50px 20px;
+             text-align: center;
+         }
+         .logo-img{
+             position: relative;
+             width: 200px;
+             height: auto;
+             margin: 20px auto;
+             margin-bottom: 20px;
+             display: block;
+         }
+         .hi-user{
+             position: relative;
+             width: 100%;
+             margin-bottom: 5px;
+             text-align: center;
+             font-size: 20px;
+             color: #621d1f !important;
+         }
+         .hi-user-span{
+             font-weight: 700;
+         }
+         .hi-user{
+             position: relative;
+             width: 100%;
+             text-align: center;
+             font-size: 20px;
+         }
+         .hi-user-subtext{
+             position: relative;
+             width: 100%;
+             text-align: center;
+             font-size: 20px;
+             margin-bottom: 20px;
+             color: #621d1f !important;
+         }
+         .welcome-img{
+             position: relative;
+             width: 180px;
+             height: auto;
+             margin: 10px auto;
+             display: block;
+         }
+         .code-text{
+             position: relative;
+             width: 100%;
+             text-align: center;
+             margin-bottom: 20px;
+             color: rgb(86, 86, 86) !important;
+             font-size: 16px;
+         }
+         .code-number{
+             position: relative;
+             width: 50%;
+             margin: 20px auto;
+             background-color:#fbf3f4 !important;
+             color: #ac1d21 !important;
+             text-align: center;
+             padding: 10px;
+             border-radius: 3px;
+             margin-bottom: 20px;
+             font-size: 28px;
+             font-weight: 600;
+             border: 1px solid #ac1d21 !important;
+         }
+         .code-expiry{
+             position: relative;
+             width: 100%;
+             text-align: center;
+             margin-bottom: 20px;
+             color: rgb(86, 86, 86) !important;
+             font-size: 12px;
+         }
+         .mail-container-two{
+             width: 26rem;
+             position: relative;
+             background-color: #faf0f0 !important;
+             box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02) !important;
+             padding: 50px 20px;
+             text-align: center;
+         }
+         .mail-text{
+             position: relative;
+             width: 100%;
+             text-align: center;
+             font-size: 14px;
+             margin-bottom: 5px;
+             color: #ac1d21 !important;
+         }
+         .footer{
+             width: 26rem;
+             position: relative;
+             text-align: center;
+             background-color: #621d1f !important;
+             padding: 50px 20px;
+         }
+         .footer p{
+             position: relative;
+             text-align: center;
+             font-size: 14px;
+             color: white;
+         }
+     </style>
+ </head>
+ <body>
+ 
+     <img src="https://mahjon-db.goldenrootscollectionsltd.com/images/email-image.png" alt="img" class="welcome-img">
+     
+     <div class="hi-user">Hello <span class="hi-user-span">${firstName}</span>,</div>
+     <div class="hi-user-subtext">Your email verification code</div>
+     
+     <div class="mail-container">
+         <img src="https://mahjon-db.goldenrootscollectionsltd.com/images/splash-logo.png" alt="logo-img" class="logo-img"/>
+         
+         <div class="code-text">
+             Thank you for registering with us! You requested for a code to be sent to you. please use the
+             verification code below:
+         </div>
+         <div class="code-number">${emailCode}</div>
+         <div class="code-expiry">
+             This code will expire on ${new Date(expiresAt).toLocaleString()}, please ensure to
+             verify your email before the time of expiration.
+         </div>
+     </div>
+ 
+     <div class="mail-container-two">
+         <div class="mail-text">If you did not send this email, please ignore this email.</div>
+         <div class="mail-text">Thank you for choosing our service.</div>
+         <div class="mail-text">Best regards,</div>
+         <div class="mail-text">Mahjong Clinic App Team</div>
+     </div>
+ 
+     <div class="footer">
+         <p>This is an automated message, please do not reply directly to this email.</p>
+         <p>© 2025 Mahjong Clinic Nigeria. All rights reserved.</p>
+         <p>Developer | iphysdynamix</p>
+     </div>
+ </body>
+ </html>`
+ };
