@@ -232,7 +232,7 @@ export const createUser = async (req, res) => {
       }
   
       const user = results[0];
-      if (user.isEmailVerified) {
+      if (user.isEmailVerified == 0 || user.isEmailVerified == false) {
         return res.status(400).json({ message: 'Your email is already verified.' });
       }
   
