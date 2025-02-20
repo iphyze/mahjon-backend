@@ -5,43 +5,37 @@ import dotenv from 'dotenv';
 import { check, validationResult } from 'express-validator';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { passwordResetTemplate, emailVerificationTemplate, passwordVerifyTemplate } from '../../utils/emailTemplates.js';
 
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
+  port: parseInt(process.env.SMTP_PORT || '587'),
   secure: true,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  debug: process.env.NODE_ENV !== 'production',
 });
 
 
 const sendVerificationEmail = async (to, emailCode, expiresAt, firstName) => {
   const mailOptions = {
-    from: '"Your App Name" <you@yourdomain.com>', // Sender address
-    to, // Recipient email
+    from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
+    to,
     subject: 'Verify Your Email Address',
-    html: `
-      <h1>Email Verification</h1>
-      <p>Hi ${firstName},</p>
-      <p>Thank you for registering. Please use the following code to verify your email:</p>
-      <h2>${emailCode}</h2>
-      <p>This code will expire on: <b>${expiresAt}</b>.</p>
-      <p>If you did not request this, please ignore this email.</p>
-      <p>Thanks,</p>
-      <p>Your App Team</p>
-    `,
+    html: emailVerificationTemplate(firstName, emailCode, expiresAt),
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Verification email sent to ${to}`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Verification email sent to ${to}: ${info.messageId}`);
+    return true;
   } catch (error) {
     console.error(`Error sending email to ${to}:`, error);
-    throw new Error('Failed to send verification email');
+    return false;
   }
 };
 
@@ -90,6 +84,8 @@ export const createUser = async (req, res) => {
     const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const emailCode = Math.floor(1000 + Math.random() * 9000);
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const role = 'User'
+    const isEmailVerified = 0;
 
     const [baseName, domain] = sanitizedEmail.split('@');
     const domainInitial = domain[0].toLowerCase(); // First letter of the domain
@@ -104,11 +100,11 @@ export const createUser = async (req, res) => {
       const insertUserQuery = `INSERT INTO users 
         (firstName, lastName, email, userName, password, country_code, number, role, isEmailVerified, emailCode, expiresAt, createdBy, 
         updatedBy, createdAt, updatedAt) 
-        VALUES (?, ?, ?, ?, ?, ?, 'User', 0, ?, ?, ?, ?, ?, ?, ?)`;
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
         db.query(
           insertUserQuery,
-          [firstName, lastName, sanitizedEmail, userName, hashedPassword, country_code, number, emailCode, expiresAt, email, email, timestamp, timestamp],
+          [firstName, lastName, sanitizedEmail, userName, hashedPassword, country_code, number, role, isEmailVerified, emailCode, expiresAt, email, email, timestamp, timestamp],
           async (err, result) => {
             if (err) return res.status(500).json({ message: 'Error creating user', error: err });
   
@@ -146,7 +142,7 @@ export const createUser = async (req, res) => {
     } catch (error) {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
-  };
+};
 
 
   export const loginUser = async (req, res) => {
@@ -206,69 +202,119 @@ export const createUser = async (req, res) => {
   
 
 
-  export const resendVerificationEmail = (req, res) => {
+  // export const resendVerificationEmail = (req, res) => {
 
+  //   const errors = validationResult(req);
+  //   if (!errors.isEmpty()) {
+  //     return res.status(400).json({ errors: errors.array() });
+  //   }
+
+  //   const { email } = req.body;
+  
+  //   // Check if email is provided
+  //   if (!email) {
+  //     return res.status(400).json({ message: 'Email is required.' });
+  //   }
+  
+  //   // Check if email exists and is not verified
+  //   const findUserQuery = `SELECT * FROM users WHERE email = ?`;
+  //   db.query(findUserQuery, [email], (err, results) => {
+  //     if (err) {
+  //       return res.status(500).json({ message: 'Database error', error: err });
+  //     }
+  
+  //     if (results.length === 0) {
+  //       return res.status(404).json({ message: 'The provided email does not exist. Please create an account first.' });
+  //     }
+  
+  //     const user = results[0];
+  //     if (user.isEmailVerified == 1 || user.isEmailVerified == true) {
+  //       return res.status(400).json({ message: 'Your email is already verified.' });
+  //     }
+  
+  //     const emailCode = Math.floor(1000 + Math.random() * 9000);
+  //     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  
+  //     // Update the database with the new email code and expiration date
+  //     const updateUserQuery = `UPDATE users SET emailCode = ?, expiresAt = ? WHERE email = ?`;
+  //     db.query(updateUserQuery, [emailCode, expiresAt, email], (err) => {
+  //       if (err) {
+  //         return res.status(500).json({ message: 'Database error', error: err });
+  //       }
+  
+  //       // Send the verification email
+  //       const mailOptions = {
+  //         from: process.env.EMAIL_USER,
+  //         to: email,
+  //         subject: 'Email Verification Code',
+  //         text: `Your verification code is ${emailCode}. It will expire in 2hrs minutes.`,
+  //       };
+  
+  //       transporter.sendMail(mailOptions, (err) => {
+  //         if (err) {
+  //           return res.status(500).json({ message: 'Failed to send email', error: err });
+  //         }
+  
+  //         res.status(200).json({
+  //           message: 'Verification code sent successfully. Please check your email.',
+  //           emailCode,
+  //           expiresAt,
+  //         });
+  //       });
+  //     });
+  //   });
+  // };
+
+  export const resendVerificationEmail = (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
+  
     const { email } = req.body;
-  
-    // Check if email is provided
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required.' });
-    }
-  
+    
     // Check if email exists and is not verified
     const findUserQuery = `SELECT * FROM users WHERE email = ?`;
-    db.query(findUserQuery, [email], (err, results) => {
+    db.query(findUserQuery, [email], async (err, results) => {
       if (err) {
         return res.status(500).json({ message: 'Database error', error: err });
       }
-  
+    
       if (results.length === 0) {
         return res.status(404).json({ message: 'The provided email does not exist. Please create an account first.' });
       }
-  
+    
       const user = results[0];
-      if (user.isEmailVerified == 0 || user.isEmailVerified == false) {
+      // Fix the condition - should check if email is ALREADY verified
+      if (user.isEmailVerified === 1 || user.isEmailVerified === true) {
         return res.status(400).json({ message: 'Your email is already verified.' });
       }
-  
+    
       const emailCode = Math.floor(1000 + Math.random() * 9000);
       const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
-  
+    
       // Update the database with the new email code and expiration date
       const updateUserQuery = `UPDATE users SET emailCode = ?, expiresAt = ? WHERE email = ?`;
-      db.query(updateUserQuery, [emailCode, expiresAt, email], (err) => {
+      db.query(updateUserQuery, [emailCode, expiresAt, email], async (err) => {
         if (err) {
           return res.status(500).json({ message: 'Database error', error: err });
         }
-  
-        // Send the verification email
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: 'Email Verification Code',
-          text: `Your verification code is ${emailCode}. It will expire in 2hrs minutes.`,
-        };
-  
-        transporter.sendMail(mailOptions, (err) => {
-          if (err) {
-            return res.status(500).json({ message: 'Failed to send email', error: err });
-          }
-  
+    
+        // Use the sendVerificationEmail function instead of duplicating code
+        const emailSent = await sendVerificationEmail(email, emailCode, expiresAt, user.firstName);
+        
+        if (emailSent) {
           res.status(200).json({
             message: 'Verification code sent successfully. Please check your email.',
             emailCode,
             expiresAt,
           });
-        });
+        } else {
+          res.status(500).json({ message: 'Failed to send verification email. Please try again later.' });
+        }
       });
     });
   };
-
 
 
   export const verifyEmail = (req, res) => {
@@ -317,17 +363,10 @@ export const createUser = async (req, res) => {
   
         // Send confirmation email
         const mailOptions = {
-          from: '"Your App Name" <you@yourdomain.com>', // Replace with your sender address
+          from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
           to: email,
           subject: 'Email Verified Successfully',
-          html: `
-            <h1>Email Verification Successful</h1>
-            <p>Hi ${user.firstName},</p>
-            <p>Your email has been successfully verified. You can now access all the features of your account.</p>
-            <p>If you did not verify your email, please contact support immediately.</p>
-            <p>Thanks,</p>
-            <p>Your App Team</p>
-          `,
+          html: passwordVerifyTemplate(user.firstName)
         };
   
         try {
@@ -368,7 +407,7 @@ export const forgotPassword = async (req, res) => {
     const user = results[0];
 
     // Generate a new random password
-    const newPassword = crypto.randomBytes(8).toString('hex'); // 16-character random password
+    const newPassword = `${crypto.randomBytes(6).toString('base64').replace(/[+/=]/g, '').slice(0, 7)}!1`; // Ensures a 16-character password with a special char (!) and a number (1)
 
     // Hash the new password
     bcrypt.hash(newPassword, 10, (err, hashedPassword) => {
@@ -385,19 +424,10 @@ export const forgotPassword = async (req, res) => {
 
         // Send the new password to the user's email
         const mailOptions = {
-          from: '"Your App Name" <you@yourdomain.com>', // Replace with your sender address
+          from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
           to: email,
           subject: 'Your Password Has Been Reset',
-          html: `
-            <h1>Password Reset Successful</h1>
-            <p>Hi ${user.firstName},</p>
-            <p>Your password has been successfully reset. Please find your new password below:</p>
-            <p><strong>${newPassword}</strong></p>
-            <p>It is recommended that you log in and change your password immediately for better security.</p>
-            <p>If you did not request this reset, please contact support immediately.</p>
-            <p>Thanks,</p>
-            <p>Your App Team</p>
-          `,
+          html: passwordResetTemplate(user.firstName, newPassword)
         };
 
         try {
