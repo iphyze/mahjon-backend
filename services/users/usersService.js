@@ -34,6 +34,7 @@ export const getAllUsers = (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      userName: results[0].userName,
       isEmailVerified: user.isEmailVerified,
       emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
       role: user.role,
@@ -71,6 +72,7 @@ export const getUserById = (req, res) => {
         firstName: results[0].firstName,
         lastName: results[0].lastName,
         email: results[0].email,
+        userName: results[0].userName,
         isEmailVerified: results[0].isEmailVerified,
         emailVerification: { emailCode: results[0].emailCode, expiresAt: results[0].expiresAt },
         role: results[0].role,
@@ -196,6 +198,7 @@ export const getUserById = (req, res) => {
             id: results[0].id,
             firstName: results[0].firstName,
             lastName: results[0].lastName,
+            userName: results[0].userName,
             email: results[0].email,
             isEmailVerified: results[0].isEmailVerified,
             emailVerification: {
