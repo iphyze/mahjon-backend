@@ -151,12 +151,16 @@ export const emailVerificationTemplate = (firstName, emailCode, expiresAt) => {
             display: flex;
             flex-direction: column;
         }
+        *{
+            box-sizing: border-box;
+        }
         .mail-container {
-            width: 26rem;
+            width: 28rem;
             background-color: white;
             box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02);
             padding: 50px 20px;
             text-align: center;
+            margin: 0 auto;
         }
         .logo-img{
             position: relative;
@@ -229,12 +233,13 @@ export const emailVerificationTemplate = (firstName, emailCode, expiresAt) => {
             font-size: 12px;
         }
         .mail-container-two{
-            width: 26rem;
+            width: 28rem;
             position: relative;
             background-color: #faf0f0 !important;
             box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02) !important;
             padding: 50px 20px;
             text-align: center;
+            margin: 0 auto;
         }
         .mail-text{
             position: relative;
@@ -245,11 +250,12 @@ export const emailVerificationTemplate = (firstName, emailCode, expiresAt) => {
             color: #ac1d21 !important;
         }
         .footer{
-            width: 26rem;
+            width: 28rem;
             position: relative;
             text-align: center;
             background-color: #621d1f !important;
             padding: 50px 20px;
+            margin: 0 auto;
         }
         .footer p{
             position: relative;
@@ -305,117 +311,213 @@ export const emailVerificationTemplate = (firstName, emailCode, expiresAt) => {
  */
 export const passwordVerifyTemplate = (firstName) => {
     return `
-  <!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Verification Successful</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"/>
+    <title>New User Email</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            color: #333333;
+            background-color: #fffcfd;
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 40px 20px;
+            justify-content: center;
+            align-items: center;
+            display: flex;
+            flex-direction: column;
         }
-        .email-container {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        *{
+            box-sizing: border-box;
         }
-        .email-header {
-            background-color: #27ae60;
-            color: white;
-            padding: 20px;
+        .mail-container {
+            width: 28rem;
+            background-color: white;
+            box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02);
+            padding: 50px 20px;
             text-align: center;
+            margin: 0 auto;
         }
-        .email-body {
-            padding: 30px;
-            background-color: #ffffff;
-        }
-        .success-icon {
-            text-align: center;
-            margin: 20px 0;
-            font-size: 48px;
-        }
-        .success-message {
-            background-color: #e7f9ef;
-            border-left: 4px solid #27ae60;
-            padding: 15px;
-            margin: 20px 0;
-        }
-        .cta-button {
+        .logo-img{
+            position: relative;
+            width: 200px;
+            height: auto;
+            margin: 20px auto;
+            margin-bottom: 20px;
             display: block;
-            text-align: center;
-            margin: 30px auto;
         }
-        .cta-button a {
-            background-color: #27ae60;
-            color: white;
-            padding: 12px 24px;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: bold;
-            display: inline-block;
-        }
-        .footer {
-            background-color: #f9f9f9;
-            padding: 20px;
+        .hi-user{
+            position: relative;
+            width: 100%;
+            margin-bottom: 5px;
             text-align: center;
+            font-size: 20px;
+            color: #621d1f !important;
+        }
+        .hi-user-span{
+            font-weight: 700;
+        }
+        .hi-user{
+            position: relative;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+        }
+        .hi-user-subtext{
+            position: relative;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #621d1f !important;
+        }
+        .welcome-img{
+            position: relative;
+            width: 180px;
+            height: auto;
+            margin: 10px auto;
+            display: block;
+        }
+        .code-text{
+            position: relative;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+            color: rgb(86, 86, 86) !important;
+            font-size: 16px;
+        }
+        .code-number{
+            position: relative;
+            width: 50%;
+            margin: 20px auto;
+            background-color:#fbf3f4 !important;
+            color: #ac1d21 !important;
+            text-align: center;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 600;
+            border: 1px solid #ac1d21 !important;
+        }
+        .code-expiry{
+            position: relative;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+            color: rgb(86, 86, 86) !important;
             font-size: 12px;
-            color: #777777;
         }
-        h1 {
-            margin-top: 0;
-            color: #ffffff;
+        .mail-container-two{
+            width: 28rem;
+            position: relative;
+            background-color: white;
+            box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02) !important;
+            padding: 50px 20px;
+            text-align: center;
+            margin: 0 auto;
         }
-        .logo {
-            margin-bottom: 10px;
-            font-size: 24px;
-            font-weight: bold;
+        .mail-text{
+            position: relative;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #ac1d21 !important;
+        }
+        .footer{
+            width: 28rem;
+            position: relative;
+            text-align: center;
+            background-color: #621d1f !important;
+            padding: 50px 20px;
+            margin: 0 auto;
+        }
+        .footer p{
+            position: relative;
+            text-align: center;
+            font-size: 14px;
+            color: white;
+        }
+        .list-box{
+            position: relative;
+            width: 100%;
+            padding: 20px 0;
+            background-color: #faf0f0 !important;
+            border-radius: 5px;
+        }
+        .list-flexbox{
+            position: relative;
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .list-icon{
+            position: relative;
+            width: 50px;
+            font-size: 14px;
+            color: #ac1d21;
+        }
+        .list-text{
+            position: relative;
+            width: calc(100% - 50px);
+            text-align: left;
+            font-size: 14px;
+            color:#621d1f;
         }
     </style>
 </head>
 <body>
-    <div class="email-container">
-        <div class="email-header">
-            <div class="logo">Your App Name</div>
-            <h1>Email Verified!</h1>
+
+    <img src="https://mahjon-db.goldenrootscollectionsltd.com/images/email-image.png" alt="img" class="welcome-img">
+    
+    <div class="hi-user">Hi <span class="hi-user-span">${firstName}</span>,</div>
+    <div class="hi-user-subtext">Your email has been verified successfully!</div>
+    
+    <div class="mail-container">
+        <img src="https://mahjon-db.goldenrootscollectionsltd.com/images/splash-logo.png" alt="logo-img" class="logo-img"/>
+        
+        <div class="code-text">
+            You now have full access to all features and benefits of your account. Here's what you can do now:
         </div>
-        <div class="email-body">
-            <div class="success-icon">
-                ✅
+        <div class="list-box">
+            <div class="list-flexbox">
+                <div class="list-icon fas fa-check-circle"></div>
+                <div class="list-text">Complete your profile information</div>
             </div>
-            
-            <p>Hi ${firstName},</p>
-            
-            <div class="success-message">
-                <p><strong>Congratulations!</strong> Your email address has been successfully verified.</p>
+            <div class="list-flexbox">
+                <div class="list-icon fas fa-check-circle"></div>
+                <div class="list-text">Explore all available features</div>
             </div>
-            
-            <p>You now have full access to all features and benefits of your account. Here's what you can do now:</p>
-            
-            <ul>
-                <li>Complete your profile information</li>
-                <li>Explore all available features</li>
-                <li>Connect with other users</li>
-                <li>Customize your notification preferences</li>
-            </ul>
-            
-            <p><small>If you did not verify this email address, please contact our support team immediately at <a href="mailto:support@yourapp.com">support@yourapp.com</a>.</small></p>
-            
-            <p>Thank you for choosing our service.</p>
-            
-            <p>Best regards,<br>The Your App Team</p>
+            <div class="list-flexbox">
+                <div class="list-icon fas fa-check-circle"></div>
+                <div class="list-text">Connect with other users</div>
+            </div>
+            <div class="list-flexbox">
+                <div class="list-icon fas fa-check-circle"></div>
+                <div class="list-text">Customize your notification preferences</div>
+            </div>
         </div>
-        <div class="footer">
-            <p>This is an automated message, please do not reply directly to this email.</p>
-            <p>© 2025 Your App Name. All rights reserved.</p>
-            <p>123 App Street, Tech City, TC 12345</p>
-        </div>
+    </div>
+
+    <div class="mail-container-two">
+        <div class="mail-text">If you did not create an account with us, please ignore this email.</div>
+        <div class="mail-text">Thank you for choosing our service.</div>
+        <div class="mail-text">Best regards,</div>
+        <div class="mail-text">Mahjong Clinic App Team</div>
+    </div>
+
+    <div class="footer">
+        <p>This is an automated message, please do not reply directly to this email.</p>
+        <p>© 2025 Mahjong Clinic Nigeria. All rights reserved.</p>
+        <p>Developer | iphysdynamix</p>
     </div>
 </body>
 </html>
@@ -453,12 +555,16 @@ export const passwordVerifyTemplate = (firstName) => {
              display: flex;
              flex-direction: column;
          }
+        *{
+            box-sizing: border-box;
+        }
          .mail-container {
-             width: 26rem;
+             width: 28rem;
              background-color: white;
              box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02);
              padding: 50px 20px;
              text-align: center;
+             margin: 0 auto;
          }
          .logo-img{
              position: relative;
@@ -531,12 +637,13 @@ export const passwordVerifyTemplate = (firstName) => {
              font-size: 12px;
          }
          .mail-container-two{
-             width: 26rem;
+             width: 28rem;
              position: relative;
              background-color: #faf0f0 !important;
              box-shadow: 0 0px 10px rgba(0, 0, 0, 0.02) !important;
              padding: 50px 20px;
              text-align: center;
+             margin: 0 auto;
          }
          .mail-text{
              position: relative;
@@ -547,11 +654,12 @@ export const passwordVerifyTemplate = (firstName) => {
              color: #ac1d21 !important;
          }
          .footer{
-             width: 26rem;
+             width: 28rem;
              position: relative;
              text-align: center;
              background-color: #621d1f !important;
              padding: 50px 20px;
+             margin: 0 auto;
          }
          .footer p{
              position: relative;

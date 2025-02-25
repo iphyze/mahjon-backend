@@ -169,60 +169,60 @@ export const createUser = async (req, res) => {
 };
 
 
-  export const loginUser = async (req, res) => {
-    try {
-      const { email, password } = req.body;
-  
-      if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required' });
-      }
-  
-      const sql = 'SELECT * FROM users WHERE email = ?';
-      db.query(sql, [email], async (err, results) => {
-        if (err) return res.status(500).json({ message: 'Database error', error: err });
-  
-        if (results.length === 0) {
-          return res.status(401).json({ message: 'Invalid email or password' });
-        }
-  
-        const user = results[0];
-        const isMatch = await bcrypt.compare(password, user.password);
-  
-        if (!isMatch) {
-          return res.status(401).json({ message: 'Invalid email or password' });
-        }
-  
-        const token = jwt.sign(
-          {
-            sub: user.number, // Same as registerUser
-            email: user.email,
-          },
-          process.env.JWT_SECRET,
-          { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
-        );
-  
-        return res.json({
-          message: 'Login successful',
-          data: {
-            id: user.id,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email,
-            isEmailVerified: user.isEmailVerified === 1,
-            emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
-            role: user.role || 'User',
-            token,
-            country_code: user.country_code,
-            number: user.number,
-            createdAt: user.createdAt,
-            updatedBy: user.updatedBy,
-          },
-        });
-      });
-    } catch (error) {
-      return res.status(500).json({ message: 'Server error', error: error.message });
+export const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
     }
-  };
+
+    const sql = 'SELECT * FROM users WHERE email = ?';
+    db.query(sql, [email], async (err, results) => {
+      if (err) return res.status(500).json({ message: 'Database error', error: err });
+
+      if (results.length === 0) {
+        return res.status(401).json({ message: 'Invalid email or password' });
+      }
+
+      const user = results[0];
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Invalid email or password' });
+      }
+
+      const token = jwt.sign(
+        {
+          sub: user.number, // Same as registerUser
+          email: user.email,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+      );
+
+      return res.json({
+        message: 'Login successful',
+        data: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          isEmailVerified: user.isEmailVerified === 1,
+          emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
+          role: user.role || 'User',
+          token,
+          country_code: user.country_code,
+          number: user.number,
+          createdAt: user.createdAt,
+          updatedBy: user.updatedBy,
+        },
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
   
 
 
@@ -387,7 +387,8 @@ export const createUser = async (req, res) => {
   
         // Send confirmation email
         const mailOptions = {
-          from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
+          // from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
+          from: '"Mahjong Nigeria Clinic" <' + process.env.SMTP_USER + '>',
           to: email,
           subject: 'Email Verified Successfully',
           html: passwordVerifyTemplate(user.firstName)
