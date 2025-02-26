@@ -208,6 +208,7 @@ export const loginUser = async (req, res) => {
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
+          userName: user.userName,
           isEmailVerified: user.isEmailVerified === 1,
           emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
           role: user.role || 'User',

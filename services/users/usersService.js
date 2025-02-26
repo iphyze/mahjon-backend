@@ -1,7 +1,31 @@
 import db from '../../config/db.js';
 import dotenv from 'dotenv';
+import { check, validationResult } from 'express-validator';
+import { Expo } from 'expo-server-sdk';
 
 dotenv.config();
+
+// Initialize Expo SDK
+const expo = new Expo();
+
+
+// Validation rules for sending notifications
+export const validateNotification = [
+  check('userId').notEmpty().withMessage('User ID is required').isString().withMessage('User ID must be a string').trim().escape(),
+  check('title').notEmpty().withMessage('Title is required').isString().withMessage('Title must be a string').trim().escape(),
+  check('message').notEmpty().withMessage('Message is required').isString().withMessage('Message must be a string').trim().escape(),
+  check('createdBy').notEmpty().withMessage('Created by is required').trim().escape(),
+  check('updatedBy').notEmpty().withMessage('Updated by is required').trim().escape(),
+];
+
+export const validateUserIdNotification = [
+  check('userId').notEmpty().withMessage('User ID is required').isString().withMessage('User ID must be a string').trim().escape(),
+];
+
+export const validateMarkNotification = [
+  check('userId').notEmpty().withMessage('User ID is required').isString().withMessage('User ID must be a string').trim().escape(),
+  check('notificationId').notEmpty().withMessage('Notification ID is required').isString().withMessage('Notification ID must be a string').trim().escape(),
+];
 
 export const getAllUsers = (req, res) => {
   const getUsersQuery = 'SELECT * FROM users';
@@ -34,7 +58,8 @@ export const getAllUsers = (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      userName: results[0].userName,
+      userName: user.userName,
+      token: token,
       isEmailVerified: user.isEmailVerified,
       emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
       role: user.role,
@@ -73,6 +98,7 @@ export const getUserById = (req, res) => {
         lastName: results[0].lastName,
         email: results[0].email,
         userName: results[0].userName,
+        token: results[0].token,
         isEmailVerified: results[0].isEmailVerified,
         emailVerification: { emailCode: results[0].emailCode, expiresAt: results[0].expiresAt },
         role: results[0].role,
@@ -87,7 +113,7 @@ export const getUserById = (req, res) => {
         data: user,
       });
     });
-  };
+};
   
 
 
@@ -220,3 +246,347 @@ export const getUserById = (req, res) => {
       });
     });
   };
+
+
+
+
+  // Function to send a notification
+//   export const sendNotification = (req, res) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         return res.status(400).json({ status: 'Failed', errors: errors.array() });
+//     }
+
+//     let { userId, title, message, createdBy, updatedBy } = req.body;
+//     const isForAllUsers = userId.toLowerCase() === 'all';
+
+//     if (!isForAllUsers) {
+//         // Check if the user exists before proceeding
+//         const checkUserQuery = `SELECT id FROM users WHERE id = ?`;
+//         db.query(checkUserQuery, [userId], (err, userResult) => {
+//             if (err) {
+//                 return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+//             }
+            
+//             if (userResult.length === 0) {
+//                 return res.status(404).json({ status: 'Failed', message: 'User not found' });
+//             }
+
+//             // Proceed to insert notification since the user exists
+//             insertNotification(userId, title, message, res);
+//         });
+//     } else {
+//         // If for all users, insert directly
+//         insertNotification('All', title, message, res);
+//     }
+// };
+
+// // Separate function to insert notification
+// const insertNotification = (userId, title, message, res) => {
+//     const insertQuery = `
+//         INSERT INTO notifications (userId, title, message, createdBy, updatedBy)
+//         VALUES (?, ?, ?, ?, ?)
+//     `;
+//     const values = [userId, title, message, 'Admin', 'Admin'];
+
+//     db.query(insertQuery, values, (err, result) => {
+//         if (err) {
+//             return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+//         }
+
+//         const notificationId = result.insertId;
+
+//         // If sending to all, insert for every user
+//         if (userId === 'All') {
+//             db.query('SELECT id FROM users', (err, users) => {
+//                 if (err) {
+//                     return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+//                 }
+
+//                 const userNotifications = users.map(user => [notificationId, user.id, false]);
+//                 if (userNotifications.length > 0) {
+//                     db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES ?', [userNotifications]);
+//                 }
+//             });
+//         } else {
+//             db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES (?, ?, ?)', [notificationId, userId, false]);
+//         }
+
+//         res.status(200).json({
+//             status: 'Successful',
+//             message: 'Notification has been sent successfully',
+//             data: { id: notificationId, userId, title, message },
+//         });
+//     });
+// };
+
+
+export const sendNotification = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ status: 'Failed', errors: errors.array() });
+    }
+
+    let { userId, title, message, createdBy, updatedBy } = req.body;
+    const isForAllUsers = userId.toLowerCase() === 'all';
+
+    if (!isForAllUsers) {
+        // Check if the user exists and get their push token
+        const checkUserQuery = `SELECT id, expoPushToken FROM users WHERE id = ?`;
+        db.query(checkUserQuery, [userId], (err, userResult) => {
+            if (err) {
+                return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+            }
+            
+            if (userResult.length === 0) {
+                return res.status(404).json({ status: 'Failed', message: 'User not found' });
+            }
+
+            // Proceed to insert notification since the user exists
+            insertNotification(userId, title, message, res, userResult[0].expoPushToken);
+        });
+    } else {
+        // If for all users, get all users' push tokens
+        db.query('SELECT id, expoPushToken FROM users WHERE expoPushToken IS NOT NULL', async (err, users) => {
+            if (err) {
+                return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+            }
+            // Insert notification for all users
+            insertNotification('All', title, message, res, users.map(user => user.expoPushToken));
+        });
+    }
+};
+
+// Function to send push notifications
+const sendPushNotification = async (pushTokens, title, message) => {
+    // Create the messages that you want to send to clients
+    let messages = [];
+    
+    // If pushTokens is a single token, convert it to an array
+    const tokenArray = Array.isArray(pushTokens) ? pushTokens : [pushTokens];
+
+    for (let pushToken of tokenArray) {
+        // Check that all your push tokens appear to be valid Expo push tokens
+        if (!Expo.isExpoPushToken(pushToken)) {
+            console.error(`Push token ${pushToken} is not a valid Expo push token`);
+            continue;
+        }
+
+        // Construct a message (see https://docs.expo.io/push-notifications/sending-notifications/)
+        messages.push({
+            to: pushToken,
+            sound: 'default',
+            title: title,
+            body: message,
+            data: { withSome: 'data' },
+        });
+    }
+
+    // The Expo push notification service accepts batches of notifications so
+    // that you don't need to send 1000 requests to send 1000 notifications.
+    // However, there are limits on the number of notifications you can send at once.
+    let chunks = expo.chunkPushNotifications(messages);
+
+    try {
+        // Send the chunks to the Expo push notification service
+        let tickets = [];
+        for (let chunk of chunks) {
+            try {
+                let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+                tickets.push(...ticketChunk);
+            } catch (error) {
+                console.error('Error sending chunk:', error);
+            }
+        }
+        return tickets;
+    } catch (error) {
+        console.error('Error sending push notification:', error);
+        throw error;
+    }
+};
+
+// Modified insertNotification function
+const insertNotification = async (userId, title, message, res, pushTokens) => {
+    const insertQuery = `
+        INSERT INTO notifications (userId, title, message, createdBy, updatedBy)
+        VALUES (?, ?, ?, ?, ?)
+    `;
+    const values = [userId, title, message, 'Admin', 'Admin'];
+
+    db.query(insertQuery, values, async (err, result) => {
+        if (err) {
+            return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+        }
+
+        const notificationId = result.insertId;
+
+        try {
+            // Send push notification
+            if (pushTokens) {
+                await sendPushNotification(pushTokens, title, message);
+            }
+
+            // If sending to all, insert for every user
+            if (userId === 'All') {
+                db.query('SELECT id FROM users', (err, users) => {
+                    if (err) {
+                        return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+                    }
+
+                    const userNotifications = users.map(user => [notificationId, user.id, false]);
+                    if (userNotifications.length > 0) {
+                        db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES ?', [userNotifications]);
+                    }
+                });
+            } else {
+                db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES (?, ?, ?)', [notificationId, userId, false]);
+            }
+
+            res.status(200).json({
+                status: 'Successful',
+                message: 'Notification has been sent successfully',
+                data: { id: notificationId, userId, title, message },
+            });
+        } catch (error) {
+            console.error('Error in push notification:', error);
+            // Still return success even if push notification fails
+            res.status(200).json({
+                status: 'Partial Success',
+                message: 'Notification saved but push notification may have failed',
+                data: { id: notificationId, userId, title, message },
+            });
+        }
+    });
+};
+
+
+
+export const updatePushToken = (req, res) => {
+  const { userId, expoPushToken } = req.body;
+
+  if (!expoPushToken) {
+      return res.status(400).json({
+          status: 'Failed',
+          message: 'Push token is required'
+      });
+  }
+
+  // const userId = req.user?.id;
+
+  if (!userId) {
+      return res.status(401).json({
+          status: 'Failed',
+          message: 'Unauthorized: User not found'
+      });
+  }
+
+  const updateQuery = `
+      UPDATE users 
+      SET expoPushToken = ? 
+      WHERE id = ?
+  `;
+
+  db.query(updateQuery, [expoPushToken, userId], (err, result) => {
+      if (err) {
+          return res.status(500).json({ 
+              status: 'Failed', 
+              message: 'Database error', 
+              error: err 
+          });
+      }
+
+      if (result.affectedRows === 0) {
+          return res.status(404).json({
+              status: 'Failed',
+              message: 'User not found or no update needed'
+          });
+      }
+
+      res.status(200).json({
+          status: 'Success',
+          message: 'Push token updated successfully'
+      });
+  });
+};
+
+  
+
+
+export const getUserNotifications = (req, res) => {
+  const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ status: 'Failed', errors: errors.array() });
+    }
+
+  const { userId } = req.params;
+
+  // Check if the user exists
+  const userCheckQuery = `SELECT id FROM users WHERE id = ?`;
+
+  db.query(userCheckQuery, [userId], (err, userResult) => {
+    if (err) {
+      return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+    }
+
+    if (userResult.length === 0) {
+      return res.status(404).json({ status: 'Failed', message: 'User not found' });
+    }
+
+    // Fetch notifications if user exists
+    const query = `
+      SELECT 
+        n.id AS notificationId, 
+        n.title, 
+        n.message, 
+        n.createdAt, 
+        COALESCE(un.isRead, false) AS isRead
+      FROM notifications n
+      LEFT JOIN user_notifications un ON n.id = un.notificationId AND un.userId = ?
+      WHERE n.userId = 'All' OR n.userId = ?
+      ORDER BY n.createdAt DESC
+    `;
+
+    db.query(query, [userId, userId], (err, results) => {
+      if (err) {
+        return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+      }
+
+      res.status(200).json({
+        status: 'Successful',
+        data: results,
+      });
+    });
+  });
+};
+
+
+
+
+
+export const markNotificationAsRead = (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ status: 'Failed', errors: errors.array() });
+  }
+
+  const { userId, notificationId } = req.body;
+
+  const query = `
+    UPDATE user_notifications 
+    SET isRead = true 
+    WHERE userId = ? AND notificationId = ?
+  `;
+
+  db.query(query, [userId, notificationId], (err, result) => {
+    if (err) {
+      return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: 'Failed', message: "Sorry, this action could not be completed, there's no match found" });
+    }
+
+    res.status(200).json({ status: 'Successful', message: 'Notification marked as read' });
+  });
+};
+

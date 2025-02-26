@@ -1,0 +1,83 @@
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Set storage location
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, "../uploads/profile_pictures");
+    
+    // Create directory if it doesn’t exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const filename = `user_${req.params.userId}_${Date.now()}${ext}`;
+    cb(null, filename);
+  },
+});
+
+// File filter (allow only images)
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (extname && mimetype) {
+    return cb(null, true);
+  } else {
+    cb(new Error("Only images (jpeg, jpg, png, gif) are allowed"));
+  }
+};
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter,
+}).single("profileImage");
+
+export const uploadProfilePicture = (req, res) => {
+  const { userId } = req.params;
+
+  // Check if user exists
+  const userCheckQuery = `SELECT id FROM users WHERE id = ?`;
+  db.query(userCheckQuery, [userId], (err, userResult) => {
+    if (err) {
+      return res.status(500).json({ status: "Failed", message: "Database error", error: err });
+    }
+    if (userResult.length === 0) {
+      return res.status(404).json({ status: "Failed", message: "User not found" });
+    }
+
+    // Upload Image
+    upload(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ status: "Failed", message: err.message });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ status: "Failed", message: "No file uploaded" });
+      }
+
+      const imageUrl = `https://yourdomain.com/uploads/profile_pictures/${req.file.filename}`;
+
+      // Update user's img_url in database
+      const updateQuery = `UPDATE users SET img_url = ? WHERE id = ?`;
+      db.query(updateQuery, [imageUrl, userId], (err) => {
+        if (err) {
+          return res.status(500).json({ status: "Failed", message: "Database error", error: err });
+        }
+
+        res.status(200).json({
+          status: "Successful",
+          message: "Profile picture updated successfully",
+          img_url: imageUrl,
+        });
+      });
+    });
+  });
+};
