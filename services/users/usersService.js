@@ -279,24 +279,77 @@ export const sendNotification = (req, res) => {
 };
 
 
+// const sendPushNotification = async (expoPushToken, title, message) => {
+//   if (!expoPushToken) return;
+
+//   try {
+//     await axios.post('https://exp.host/--/api/v2/push/send', {
+//       to: expoPushToken,
+//       sound: 'default',
+//       title,
+//       body: message,
+//     }, {
+//       headers: {
+//         Accept: 'application/json',
+//         'Content-Type': 'application/json',
+//       }
+//     });
+//     return true;
+//   } catch (error) {
+//     console.error('Error sending push notification:', error);
+//     return false;
+//   }
+// };
+
+
 const sendPushNotification = async (expoPushToken, title, message) => {
-  if (!expoPushToken) return;
+  if (!expoPushToken) {
+    console.log('No push token provided, skipping notification');
+    return false;
+  }
 
   try {
-    await axios.post('https://exp.host/--/api/v2/push/send', {
+    const notificationPayload = {
       to: expoPushToken,
       sound: 'default',
-      title,
+      title: title,
       body: message,
-    }, {
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
+      data: {
+        title: title,
+        message: message
+      },
+      priority: 'high',
+      channelId: 'default',
+      _displayInForeground: true
+    };
+    
+    console.log('Sending push notification:', JSON.stringify(notificationPayload));
+    
+    const response = await axios.post(
+      'https://exp.host/--/api/v2/push/send',
+      notificationPayload,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        }
       }
-    });
+    );
+    
+    console.log('Push notification response:', response.data);
     return true;
   } catch (error) {
     console.error('Error sending push notification:', error);
+    
+    if (error.response) {
+      console.error('Server responded with:', error.response.status, error.response.data);
+    } else if (error.request) {
+      console.error('No response received from server');
+    } else {
+      console.error('Error setting up request:', error.message);
+    }
+    
     return false;
   }
 };
@@ -312,51 +365,165 @@ const insertNotification = (userId, title, message, res) => {
 
   db.query(insertQuery, values, (err, result) => {
       if (err) {
-          return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+          console.error('Database error inserting notification:', err);
+          return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
       }
 
       const notificationId = result.insertId;
+      
+      // Track push notification results
+      let pushSuccessCount = 0;
+      let pushFailureCount = 0;
 
       if (userId === 'All') {
-          db.query('SELECT id, expoPushToken FROM users', async (err, users) => {
+          db.query('SELECT id, expoPushToken, notificationsEnabled FROM users', async (err, users) => {
               if (err) {
-                  return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+                  console.error('Database error fetching users:', err);
+                  return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
               }
 
               const userNotifications = users.map(user => [notificationId, user.id, false]);
 
               if (userNotifications.length > 0) {
-                  db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES ?', [userNotifications]);
-                  
-                  // Send push notifications to all users
-                  users.forEach(user => {
-                      if (user.expoPushToken) {
-                          sendPushNotification(user.expoPushToken, title, message);
+                  db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES ?', [userNotifications], (err) => {
+                      if (err) {
+                          console.error('Error inserting user notifications:', err);
                       }
                   });
+                  
+                  // Send push notifications only to users who have enabled them
+                  console.log(`Attempting to send notifications to ${users.length} users`);
+                  
+                  const pushPromises = users
+                      .filter(user => user.expoPushToken && user.notificationsEnabled !== false)
+                      .map(async (user) => {
+                          console.log(`Sending to user ${user.id} with token: ${user.expoPushToken}`);
+                          const success = await sendPushNotification(user.expoPushToken, title, message);
+                          if (success) pushSuccessCount++;
+                          else pushFailureCount++;
+                          return success;
+                      });
+                  
+                  await Promise.all(pushPromises);
+                  console.log(`Push notification results: ${pushSuccessCount} successful, ${pushFailureCount} failed`);
               }
+              
+              res.status(200).json({
+                  status: 'Successful',
+                  message: 'Notification has been sent successfully',
+                  data: { 
+                      id: notificationId, 
+                      userId, 
+                      title, 
+                      message,
+                      pushStats: {
+                          attempted: users.filter(u => u.expoPushToken).length,
+                          successful: pushSuccessCount,
+                          failed: pushFailureCount
+                      }
+                  },
+              });
           });
       } else {
-          db.query('SELECT expoPushToken FROM users WHERE id = ?', [userId], async (err, result) => {
+          db.query('SELECT expoPushToken, notificationsEnabled FROM users WHERE id = ?', [userId], async (err, result) => {
               if (err) {
-                  return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+                  console.error('Database error fetching user token:', err);
+                  return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
               }
 
-              if (result.length > 0) {
-                  sendPushNotification(result[0].expoPushToken, title, message);
+              let pushResult = false;
+              if (result.length > 0 && result[0].expoPushToken && result[0].notificationsEnabled !== false) {
+                  console.log(`Sending to single user with token: ${result[0].expoPushToken}`);
+                  pushResult = await sendPushNotification(result[0].expoPushToken, title, message);
+                  pushSuccessCount = pushResult ? 1 : 0;
+                  pushFailureCount = pushResult ? 0 : 1;
               }
+
+              db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES (?, ?, ?)', 
+                  [notificationId, userId, false], 
+                  (err) => {
+                      if (err) {
+                          console.error('Error inserting user notification:', err);
+                      }
+                  }
+              );
+
+              res.status(200).json({
+                  status: 'Successful',
+                  message: 'Notification has been sent successfully',
+                  data: { 
+                      id: notificationId, 
+                      userId, 
+                      title, 
+                      message,
+                      pushStats: {
+                          attempted: result.length > 0 && result[0].expoPushToken ? 1 : 0,
+                          successful: pushSuccessCount,
+                          failed: pushFailureCount
+                      }
+                  },
+              });
           });
-
-          db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES (?, ?, ?)', [notificationId, userId, false]);
       }
-
-      res.status(200).json({
-          status: 'Successful',
-          message: 'Notification has been sent successfully',
-          data: { id: notificationId, userId, title, message },
-      });
   });
 };
+
+
+
+// const insertNotification = (userId, title, message, res) => {
+//   const insertQuery = `
+//       INSERT INTO notifications (userId, title, message, createdBy, updatedBy)
+//       VALUES (?, ?, ?, ?, ?)
+//   `;
+//   const values = [userId, title, message, 'Admin', 'Admin'];
+
+//   db.query(insertQuery, values, (err, result) => {
+//       if (err) {
+//           return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+//       }
+
+//       const notificationId = result.insertId;
+
+//       if (userId === 'All') {
+//           db.query('SELECT id, expoPushToken FROM users', async (err, users) => {
+//               if (err) {
+//                   return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+//               }
+
+//               const userNotifications = users.map(user => [notificationId, user.id, false]);
+
+//               if (userNotifications.length > 0) {
+//                   db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES ?', [userNotifications]);
+                  
+//                   // Send push notifications to all users
+//                   users.forEach(user => {
+//                       if (user.expoPushToken) {
+//                           sendPushNotification(user.expoPushToken, title, message);
+//                       }
+//                   });
+//               }
+//           });
+//       } else {
+//           db.query('SELECT expoPushToken FROM users WHERE id = ?', [userId], async (err, result) => {
+//               if (err) {
+//                   return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+//               }
+
+//               if (result.length > 0) {
+//                   sendPushNotification(result[0].expoPushToken, title, message);
+//               }
+//           });
+
+//           db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES (?, ?, ?)', [notificationId, userId, false]);
+//       }
+
+//       res.status(200).json({
+//           status: 'Successful',
+//           message: 'Notification has been sent successfully',
+//           data: { id: notificationId, userId, title, message },
+//       });
+//   });
+// };
 
 
 
@@ -479,19 +646,68 @@ export const markNotificationAsRead = (req, res) => {
 
 
 
-export const updatePushToken = (req, res) => {
+// export const updatePushToken = (req, res) => {
 
+//   const { userId, expoPushToken } = req.body;
+
+//     if (!userId || !expoPushToken) {
+//         return res.status(400).json({ status: 'Failed', message: 'Missing userId or expoPushToken' });
+//     }
+
+//     const query = `UPDATE users SET expoPushToken = ? WHERE id = ?`;
+//     db.query(query, [expoPushToken, userId], (err) => {
+//         if (err) {
+//             return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+//         }
+//         res.json({ status: 'Success', message: 'Push token saved successfully' });
+//     });
+// };
+
+
+
+export const updatePushToken = (req, res) => {
   const { userId, expoPushToken } = req.body;
 
-    if (!userId || !expoPushToken) {
-        return res.status(400).json({ status: 'Failed', message: 'Missing userId or expoPushToken' });
-    }
+  if (!userId || !expoPushToken) {
+    return res.status(400).json({ status: 'Failed', message: 'Missing userId or expoPushToken' });
+  }
 
-    const query = `UPDATE users SET expoPushToken = ? WHERE id = ?`;
-    db.query(query, [expoPushToken, userId], (err) => {
-        if (err) {
-            return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
-        }
-        res.json({ status: 'Success', message: 'Push token saved successfully' });
+  // Log what we're receiving
+  console.log('Updating push token:', { userId, expoPushToken });
+
+  // Validate token format
+  if (typeof expoPushToken === 'string') {
+    const isValidToken = expoPushToken.startsWith('ExponentPushToken[') || 
+                          expoPushToken.startsWith('ExpoPushToken[');
+    
+    if (!isValidToken) {
+      console.warn(`Potentially invalid token format: ${expoPushToken}`);
+      // Still proceed with saving it
+    }
+  }
+
+  const query = `UPDATE users SET expoPushToken = ? WHERE id = ?`;
+  db.query(query, [expoPushToken, userId], (err, result) => {
+    if (err) {
+      console.error('Database error updating push token:', err);
+      return res.status(500).json({ 
+        status: 'Failed', 
+        message: 'Database error', 
+        error: err.message 
+      });
+    }
+    
+    // Check if any rows were affected
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
+        status: 'Failed', 
+        message: 'User not found' 
+      });
+    }
+    
+    res.json({ 
+      status: 'Success', 
+      message: 'Push token saved successfully' 
     });
+  });
 };
