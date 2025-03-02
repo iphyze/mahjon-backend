@@ -308,19 +308,27 @@ const sendPushNotification = async (expoPushToken, title, message) => {
     return false;
   }
 
+  // Validate token format
+  if (!expoPushToken.startsWith('ExponentPushToken[') && !expoPushToken.startsWith('ExpoPushToken[')) {
+    console.error('Invalid token format:', expoPushToken);
+    return false;
+  }
+
   try {
     const notificationPayload = {
       to: expoPushToken,
       sound: 'default',
       title: title,
       body: message,
-      data: {
+      data: { // Optional data for your app to process
         title: title,
-        message: message
+        message: message,
+        timestamp: new Date().toISOString()
       },
-      priority: 'high',
-      channelId: 'default',
-      _displayInForeground: true
+      priority: 'high', // Important for Android
+      channelId: 'default', // Must match the channel ID you created in your app
+      badge: 1, // For iOS
+      _displayInForeground: true // To ensure it shows when app is in foreground
     };
     
     console.log('Sending push notification:', JSON.stringify(notificationPayload));
@@ -342,6 +350,7 @@ const sendPushNotification = async (expoPushToken, title, message) => {
   } catch (error) {
     console.error('Error sending push notification:', error);
     
+    // Better error logging
     if (error.response) {
       console.error('Server responded with:', error.response.status, error.response.data);
     } else if (error.request) {
@@ -354,6 +363,119 @@ const sendPushNotification = async (expoPushToken, title, message) => {
   }
 };
 
+
+
+// const insertNotification = (userId, title, message, res) => {
+//   const insertQuery = `
+//       INSERT INTO notifications (userId, title, message, createdBy, updatedBy)
+//       VALUES (?, ?, ?, ?, ?)
+//   `;
+//   const values = [userId, title, message, 'Admin', 'Admin'];
+
+//   db.query(insertQuery, values, (err, result) => {
+//       if (err) {
+//           console.error('Database error inserting notification:', err);
+//           return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
+//       }
+
+//       const notificationId = result.insertId;
+      
+//       // Track push notification results
+//       let pushSuccessCount = 0;
+//       let pushFailureCount = 0;
+
+//       if (userId === 'All') {
+//           db.query('SELECT id, expoPushToken FROM users', async (err, users) => {
+//               if (err) {
+//                   console.error('Database error fetching users:', err);
+//                   return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
+//               }
+
+//               const userNotifications = users.map(user => [notificationId, user.id, false]);
+
+//               if (userNotifications.length > 0) {
+//                   db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES ?', [userNotifications], (err) => {
+//                       if (err) {
+//                           console.error('Error inserting user notifications:', err);
+//                       }
+//                   });
+                  
+//                   // Send push notifications only to users who have enabled them
+//                   console.log(`Attempting to send notifications to ${users.length} users`);
+                  
+//                   const pushPromises = users
+//                       .filter(user => user.expoPushToken && user.notificationsEnabled !== false)
+//                       .map(async (user) => {
+//                           console.log(`Sending to user ${user.id} with token: ${user.expoPushToken}`);
+//                           const success = await sendPushNotification(user.expoPushToken, title, message);
+//                           if (success) pushSuccessCount++;
+//                           else pushFailureCount++;
+//                           return success;
+//                       });
+                  
+//                   await Promise.all(pushPromises);
+//                   console.log(`Push notification results: ${pushSuccessCount} successful, ${pushFailureCount} failed`);
+//               }
+              
+//               res.status(200).json({
+//                   status: 'Successful',
+//                   message: 'Notification has been sent successfully',
+//                   data: { 
+//                       id: notificationId, 
+//                       userId, 
+//                       title, 
+//                       message,
+//                       pushStats: {
+//                           attempted: users.filter(u => u.expoPushToken).length,
+//                           successful: pushSuccessCount,
+//                           failed: pushFailureCount
+//                       }
+//                   },
+//               });
+//           });
+//       } else {
+//           db.query('SELECT expoPushToken FROM users WHERE id = ?', [userId], async (err, result) => {
+//               if (err) {
+//                   console.error('Database error fetching user token:', err);
+//                   return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
+//               }
+
+//               let pushResult = false;
+//               if (result.length > 0 && result[0].expoPushToken && result[0].notificationsEnabled !== false) {
+//                   console.log(`Sending to single user with token: ${result[0].expoPushToken}`);
+//                   pushResult = await sendPushNotification(result[0].expoPushToken, title, message);
+//                   pushSuccessCount = pushResult ? 1 : 0;
+//                   pushFailureCount = pushResult ? 0 : 1;
+//               }
+
+//               db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES (?, ?, ?)', 
+//                   [notificationId, userId, false], 
+//                   (err) => {
+//                       if (err) {
+//                           console.error('Error inserting user notification:', err);
+//                       }
+//                   }
+//               );
+
+//               res.status(200).json({
+//                   status: 'Successful',
+//                   message: 'Notification has been sent successfully',
+//                   data: { 
+//                       id: notificationId, 
+//                       userId, 
+//                       title, 
+//                       message,
+//                       pushStats: {
+//                           attempted: result.length > 0 && result[0].expoPushToken ? 1 : 0,
+//                           successful: pushSuccessCount,
+//                           failed: pushFailureCount
+//                       }
+//                   },
+//               });
+//           });
+//       }
+//   });
+// };
 
 
 const insertNotification = (userId, title, message, res) => {
@@ -376,7 +498,7 @@ const insertNotification = (userId, title, message, res) => {
       let pushFailureCount = 0;
 
       if (userId === 'All') {
-          db.query('SELECT id, expoPushToken, notificationsEnabled FROM users', async (err, users) => {
+          db.query('SELECT id, expoPushToken FROM users', async (err, users) => {
               if (err) {
                   console.error('Database error fetching users:', err);
                   return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
@@ -391,11 +513,11 @@ const insertNotification = (userId, title, message, res) => {
                       }
                   });
                   
-                  // Send push notifications only to users who have enabled them
+                  // Send push notifications to all users with valid tokens
                   console.log(`Attempting to send notifications to ${users.length} users`);
                   
                   const pushPromises = users
-                      .filter(user => user.expoPushToken && user.notificationsEnabled !== false)
+                      .filter(user => user.expoPushToken)
                       .map(async (user) => {
                           console.log(`Sending to user ${user.id} with token: ${user.expoPushToken}`);
                           const success = await sendPushNotification(user.expoPushToken, title, message);
@@ -425,14 +547,14 @@ const insertNotification = (userId, title, message, res) => {
               });
           });
       } else {
-          db.query('SELECT expoPushToken, notificationsEnabled FROM users WHERE id = ?', [userId], async (err, result) => {
+          db.query('SELECT expoPushToken FROM users WHERE id = ?', [userId], async (err, result) => {
               if (err) {
                   console.error('Database error fetching user token:', err);
                   return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
               }
 
               let pushResult = false;
-              if (result.length > 0 && result[0].expoPushToken && result[0].notificationsEnabled !== false) {
+              if (result.length > 0 && result[0].expoPushToken) {
                   console.log(`Sending to single user with token: ${result[0].expoPushToken}`);
                   pushResult = await sendPushNotification(result[0].expoPushToken, title, message);
                   pushSuccessCount = pushResult ? 1 : 0;
@@ -465,6 +587,60 @@ const insertNotification = (userId, title, message, res) => {
               });
           });
       }
+  });
+};
+
+
+
+export const getUserNotifications = (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ status: 'Failed', errors: errors.array() });
+  }
+
+  const { userId } = req.params;
+
+  // Check if the user exists and get registration date
+  const userCheckQuery = `SELECT id, createdAt as registrationDate FROM users WHERE id = ?`;
+
+  db.query(userCheckQuery, [userId], (err, userResult) => {
+    if (err) {
+      return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+    }
+
+    if (userResult.length === 0) {
+      return res.status(404).json({ status: 'Failed', message: 'User not found' });
+    }
+
+    const registrationDate = userResult[0].registrationDate;
+
+    // Modified query to include registration date check for 'All' notifications
+    const query = `
+      SELECT 
+        n.id AS notificationId, 
+        n.title, 
+        n.message, 
+        n.createdAt, 
+        n.userId AS notificationUserId,
+        COALESCE(un.isRead, false) AS isRead
+      FROM notifications n
+      LEFT JOIN user_notifications un ON n.id = un.notificationId AND un.userId = ?
+      WHERE 
+        (n.userId = ? OR 
+        (n.userId = 'All' AND n.createdAt >= ?))
+      ORDER BY n.createdAt DESC
+    `;
+
+    db.query(query, [userId, userId, registrationDate], (err, results) => {
+      if (err) {
+        return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+      }
+
+      res.status(200).json({
+        status: 'Successful',
+        data: results,
+      });
+    });
   });
 };
 
@@ -568,52 +744,52 @@ const insertNotification = (userId, title, message, res) => {
   
 
 
-export const getUserNotifications = (req, res) => {
-  const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ status: 'Failed', errors: errors.array() });
-    }
+// export const getUserNotifications = (req, res) => {
+//   const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         return res.status(400).json({ status: 'Failed', errors: errors.array() });
+//     }
 
-  const { userId } = req.params;
+//   const { userId } = req.params;
 
-  // Check if the user exists
-  const userCheckQuery = `SELECT id FROM users WHERE id = ?`;
+//   // Check if the user exists
+//   const userCheckQuery = `SELECT id FROM users WHERE id = ?`;
 
-  db.query(userCheckQuery, [userId], (err, userResult) => {
-    if (err) {
-      return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
-    }
+//   db.query(userCheckQuery, [userId], (err, userResult) => {
+//     if (err) {
+//       return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+//     }
 
-    if (userResult.length === 0) {
-      return res.status(404).json({ status: 'Failed', message: 'User not found' });
-    }
+//     if (userResult.length === 0) {
+//       return res.status(404).json({ status: 'Failed', message: 'User not found' });
+//     }
 
-    // Fetch notifications if user exists
-    const query = `
-      SELECT 
-        n.id AS notificationId, 
-        n.title, 
-        n.message, 
-        n.createdAt, 
-        COALESCE(un.isRead, false) AS isRead
-      FROM notifications n
-      LEFT JOIN user_notifications un ON n.id = un.notificationId AND un.userId = ?
-      WHERE n.userId = 'All' OR n.userId = ?
-      ORDER BY n.createdAt DESC
-    `;
+//     // Fetch notifications if user exists
+//     const query = `
+//       SELECT 
+//         n.id AS notificationId, 
+//         n.title, 
+//         n.message, 
+//         n.createdAt, 
+//         COALESCE(un.isRead, false) AS isRead
+//       FROM notifications n
+//       LEFT JOIN user_notifications un ON n.id = un.notificationId AND un.userId = ?
+//       WHERE n.userId = 'All' OR n.userId = ?
+//       ORDER BY n.createdAt DESC
+//     `;
 
-    db.query(query, [userId, userId], (err, results) => {
-      if (err) {
-        return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
-      }
+//     db.query(query, [userId, userId], (err, results) => {
+//       if (err) {
+//         return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+//       }
 
-      res.status(200).json({
-        status: 'Successful',
-        data: results,
-      });
-    });
-  });
-};
+//       res.status(200).json({
+//         status: 'Successful',
+//         data: results,
+//       });
+//     });
+//   });
+// };
 
 
 
@@ -646,68 +822,19 @@ export const markNotificationAsRead = (req, res) => {
 
 
 
-// export const updatePushToken = (req, res) => {
-
-//   const { userId, expoPushToken } = req.body;
-
-//     if (!userId || !expoPushToken) {
-//         return res.status(400).json({ status: 'Failed', message: 'Missing userId or expoPushToken' });
-//     }
-
-//     const query = `UPDATE users SET expoPushToken = ? WHERE id = ?`;
-//     db.query(query, [expoPushToken, userId], (err) => {
-//         if (err) {
-//             return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
-//         }
-//         res.json({ status: 'Success', message: 'Push token saved successfully' });
-//     });
-// };
-
-
-
 export const updatePushToken = (req, res) => {
+
   const { userId, expoPushToken } = req.body;
 
-  if (!userId || !expoPushToken) {
-    return res.status(400).json({ status: 'Failed', message: 'Missing userId or expoPushToken' });
-  }
-
-  // Log what we're receiving
-  console.log('Updating push token:', { userId, expoPushToken });
-
-  // Validate token format
-  if (typeof expoPushToken === 'string') {
-    const isValidToken = expoPushToken.startsWith('ExponentPushToken[') || 
-                          expoPushToken.startsWith('ExpoPushToken[');
-    
-    if (!isValidToken) {
-      console.warn(`Potentially invalid token format: ${expoPushToken}`);
-      // Still proceed with saving it
+    if (!userId || !expoPushToken) {
+        return res.status(400).json({ status: 'Failed', message: 'Missing userId or expoPushToken' });
     }
-  }
 
-  const query = `UPDATE users SET expoPushToken = ? WHERE id = ?`;
-  db.query(query, [expoPushToken, userId], (err, result) => {
-    if (err) {
-      console.error('Database error updating push token:', err);
-      return res.status(500).json({ 
-        status: 'Failed', 
-        message: 'Database error', 
-        error: err.message 
-      });
-    }
-    
-    // Check if any rows were affected
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ 
-        status: 'Failed', 
-        message: 'User not found' 
-      });
-    }
-    
-    res.json({ 
-      status: 'Success', 
-      message: 'Push token saved successfully' 
+    const query = `UPDATE users SET expoPushToken = ? WHERE id = ?`;
+    db.query(query, [expoPushToken, userId], (err) => {
+        if (err) {
+            return res.status(500).json({ status: 'Failed', message: 'Database error', error: err });
+        }
+        res.json({ status: 'Success', message: 'Push token saved successfully' });
     });
-  });
 };
