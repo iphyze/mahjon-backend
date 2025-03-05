@@ -2,6 +2,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import authRoutes from './routes/authRoutes.js'
 import usersRoutes from './routes/usersRoutes.js'
+import paymentsRoutes from './routes/paymentsRoutes.js'
 import dotenv from 'dotenv';
 import cors from 'cors';
 
@@ -43,6 +44,8 @@ app.use('/api/auth', authRoutes);
 
 // Users routes
 app.use('/api/users', usersRoutes);
+
+app.use('/api/payment', paymentsRoutes);
 
 
 // Server

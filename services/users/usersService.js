@@ -59,6 +59,21 @@ export const getAllUsers = (req, res) => {
       token: token,
       isEmailVerified: user.isEmailVerified,
       emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
+      payments: 
+        {
+          membership: {
+            membershipPayment: results[0].membershipPayment,
+            membershipPaymentAmount: results[0].membershipPaymentAmount,
+            membershipPaymentDate: results[0].membershipPaymentDate,
+            membershipPaymentDuration: results[0].membershipPaymentDuration,
+          },
+          tutorship: {
+            tutorshipPayment: results[0].tutorshipPayment,
+            tutorshipPaymentAmount: results[0].tutorshipPaymentAmount,
+            tutorshipPaymentDate: results[0].tutorshipPaymentDate,
+            tutorshipPaymentDuration: results[0].tutorshipPaymentDuration,
+          }
+        },
       role: user.role,
       country_code: user.country_code,
       number: user.number,
@@ -98,6 +113,21 @@ export const getUserById = (req, res) => {
         token: results[0].token,
         isEmailVerified: results[0].isEmailVerified,
         emailVerification: { emailCode: results[0].emailCode, expiresAt: results[0].expiresAt },
+        payments: 
+        {
+          membership: {
+            membershipPayment: results[0].membershipPayment,
+            membershipPaymentAmount: results[0].membershipPaymentAmount,
+            membershipPaymentDate: results[0].membershipPaymentDate,
+            membershipPaymentDuration: results[0].membershipPaymentDuration,
+          },
+          tutorship: {
+            tutorshipPayment: results[0].tutorshipPayment,
+            tutorshipPaymentAmount: results[0].tutorshipPaymentAmount,
+            tutorshipPaymentDate: results[0].tutorshipPaymentDate,
+            tutorshipPaymentDuration: results[0].tutorshipPaymentDuration,
+          }
+        },
         role: results[0].role,
         country_code: results[0].country_code,
         number: results[0].number,

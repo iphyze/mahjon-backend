@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { check, validationResult } from 'express-validator';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
-import { passwordResetTemplate, emailVerificationTemplate, passwordVerifyTemplate, sendEmailVerificationTemplate } from '../../utils/emailTemplates.js';
+import { passwordResetTemplate, emailVerificationTemplate, passwordVerifyTemplate, sendEmailVerificationTemplate, passwordUpdateTemplate } from '../../utils/emailTemplates.js';
 
 dotenv.config();
 
@@ -108,7 +108,15 @@ export const createUser = async (req, res) => {
     const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const emailCode = Math.floor(1000 + Math.random() * 9000);
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    const role = 'User'
+    const role = 'User';
+    const membershipPayment = 'Pending';
+    const membershipPaymentAmount = Number(0.00).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    const membershipPaymentDate = '';
+    const membershipPaymentDuration = '';
+    const tutorshipPayment = 'Pending';
+    const tutorshipPaymentAmount = Number(0.00).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    const tutorshipPaymentDate = '';
+    const tutorshipPaymentDuration = '';
     const isEmailVerified = 0;
 
     const [baseName, domain] = sanitizedEmail.split('@');
@@ -123,12 +131,13 @@ export const createUser = async (req, res) => {
 
       const insertUserQuery = `INSERT INTO users 
         (firstName, lastName, email, userName, password, country_code, number, role, isEmailVerified, emailCode, expiresAt, createdBy, 
-        updatedBy, createdAt, updatedAt) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        updatedBy, createdAt, updatedAt, membershipPayment, tutorshipPayment) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
         db.query(
           insertUserQuery,
-          [firstName, lastName, sanitizedEmail, userName, hashedPassword, country_code, number, role, isEmailVerified, emailCode, expiresAt, email, email, timestamp, timestamp],
+          [firstName, lastName, sanitizedEmail, userName, hashedPassword, country_code, number, role, isEmailVerified, emailCode, expiresAt, email, email, 
+            timestamp, timestamp, membershipPayment, tutorshipPayment],
           async (err, result) => {
             if (err) return res.status(500).json({ message: 'Error creating user', error: err });
   
@@ -152,6 +161,21 @@ export const createUser = async (req, res) => {
                 userName: userName,
                 isEmailVerified: false,
                 emailVerification: { emailCode, expiresAt },
+                payments: 
+                  {
+                    membership: {
+                      membershipPayment,
+                      membershipPaymentAmount,
+                      membershipPaymentDate,
+                      membershipPaymentDuration,
+                    },
+                    tutorship: {
+                      tutorshipPayment,
+                      tutorshipPaymentAmount,
+                      tutorshipPaymentDate,
+                      tutorshipPaymentDuration,
+                    }
+                  },
                 role: 'User',
                 token,
                 country_code,
@@ -210,6 +234,21 @@ export const loginUser = async (req, res) => {
           email: user.email,
           userName: user.userName,
           isEmailVerified: user.isEmailVerified === 1,
+          payments: 
+                  {
+                    membership: {
+                      membershipPayment: user?.membershipPayment,
+                      membershipPaymentAmount: user?.membershipPaymentAmount,
+                      membershipPaymentDate: user?.membershipPaymentDate,
+                      membershipPaymentDuration: user?.membershipPaymentDuration,
+                    },
+                    tutorship: {
+                      tutorshipPayment: user?.tutorshipPayment,
+                      tutorshipPaymentAmount: user?.tutorshipPaymentAmount,
+                      tutorshipPaymentDate: user?.tutorshipPaymentDate,
+                      tutorshipPaymentDuration: user?.tutorshipPaymentDuration,
+                    }
+          },
           emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
           role: user.role || 'User',
           token,
@@ -520,17 +559,10 @@ export const updatePassword = async (req, res) => {
 
           // Send email notification
           const mailOptions = {
-            from: '"Your App Name" <you@yourdomain.com>', // Replace with your sender address
+            from: '"Mahjong Nigeria Clinic" <' + process.env.SMTP_USER + '>',
             to: user.email,
-            subject: 'Your Password Has Been Updated',
-            html: `
-              <h1>Password Update Successful</h1>
-              <p>Hi ${user.firstName},</p>
-              <p>Your password has been successfully updated.</p>
-              <p>If you did not make this change, please contact support immediately.</p>
-              <p>Thanks,</p>
-              <p>Your App Team</p>
-            `,
+            subject: 'Password Update',
+            html: passwordUpdateTemplate(user.firstName)
           };
 
           try {
