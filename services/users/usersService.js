@@ -56,7 +56,6 @@ export const getAllUsers = (req, res) => {
       lastName: user.lastName,
       email: user.email,
       userName: user.userName,
-      token: token,
       isEmailVerified: user.isEmailVerified,
       emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
       payments: 
