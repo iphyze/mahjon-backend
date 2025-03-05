@@ -105,9 +105,9 @@
             margin-bottom: 20px;
             font-size: 28px;
             font-weight: 600;
-            background-color: ${paymentStatus === 'Pending' ? '#fff3cd' : paymentStatus === 'Successful' ? '#d4edda' : '#f8d7da'};
-            color: ${paymentStatus === 'Pending' ? '#856404' : paymentStatus === 'Successful' ? '#155724' : '#721c24'};
-            border: 1px solid ${paymentStatus === 'Pending' ? '#856404' : paymentStatus === 'Successful' ? '#155724' : '#721c24'} !important;
+            background-color: ${paymentStatus === 'Pending' ? '#fff3cd' : paymentStatus === 'successful' ? '#d4edda' : '#f8d7da'};
+            color: ${paymentStatus === 'Pending' ? '#856404' : paymentStatus === 'successful' ? '#155724' : '#721c24'};
+            border: 1px solid ${paymentStatus === 'Pending' ? '#856404' : paymentStatus === 'successful' ? '#155724' : '#721c24'} !important;
         }
          .code-expiry{
              position: relative;
