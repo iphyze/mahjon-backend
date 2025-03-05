@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { check, validationResult } from 'express-validator';
 import { paymentConfirmationTemplate } from '../../utils/paymentEmailTemplates.js';
 import nodemailer from 'nodemailer';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -155,166 +156,270 @@ const sendPaymentEmail = async (to, dollar_amount, rate, amount, payment_type, p
 
 
 export const createPayment = async (req, res) => {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
+  // Check for validation errors
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+  }
 
-    try {
-        const { 
-            userId, email, dollar_amount, rate, amount, payment_type, phoneNumber, 
-            paymentDuration, transactionId, fullname, paymentMethod, transactionReference, 
-            currency, paymentStatus 
-        } = req.body;
+  try {
+      const { 
+          userId, email, dollar_amount, rate, amount, payment_type, phoneNumber, 
+          paymentDuration, transactionId, fullname, paymentMethod, transactionReference, 
+          currency, paymentStatus 
+      } = req.body;
 
-        const sanitizedEmail = email.trim().toLowerCase();
-        const paymentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const createdBy = sanitizedEmail;
-        const updatedBy = sanitizedEmail;
+      const sanitizedEmail = email.trim().toLowerCase();
+      const paymentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      const createdBy = sanitizedEmail;
+      const updatedBy = sanitizedEmail;
 
-        // Check if user exists and get their push token
-        const checkUserQuery = 'SELECT id, expoPushToken FROM users WHERE id = ? AND email = ?';
-        db.query(checkUserQuery, [userId, sanitizedEmail], (err, results) => {
-            if (err) return res.status(500).json({ message: 'Database error', error: err });
-            if (results.length === 0) return res.status(400).json({ message: 'User not found' });
+      // Check if user exists and get their push token
+      const checkUserQuery = 'SELECT id, expoPushToken FROM users WHERE id = ? AND email = ?';
+      db.query(checkUserQuery, [userId, sanitizedEmail], async (err, results) => {
+          if (err) return res.status(500).json({ message: 'Database error', error: err });
+          if (results.length === 0) return res.status(400).json({ message: 'User not found' });
 
-            const expoPushToken = results[0].expoPushToken; // Get user's push token
+          const expoPushToken = results[0].expoPushToken; // Get user's push token
 
-            // Insert payment details
-            const insertPaymentQuery = `INSERT INTO user_payment 
-                (userId, email, dollar_amount, rate, amount, payment_type, paymentStatus, paymentDuration, 
-                paymentDate, phoneNumber, transactionId, fullname, createdBy, updatedBy, paymentMethod, 
-                transactionReference, currency) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+          // Insert payment details
+          const insertPaymentQuery = `INSERT INTO user_payment 
+              (userId, email, dollar_amount, rate, amount, payment_type, paymentStatus, paymentDuration, 
+              paymentDate, phoneNumber, transactionId, fullname, createdBy, updatedBy, paymentMethod, 
+              transactionReference, currency) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-            const updateUserQuery = payment_type === 'Membership Payment' ? 
-                `UPDATE users SET membershipPayment = ?, membershipPaymentAmount = ?, 
-                membershipPaymentDate = ?, membershipPaymentDuration = ? WHERE id = ?` :
-                payment_type === 'Tutorship Payment' ? 
-                `UPDATE users SET tutorshipPayment = ?, tutorshipPaymentAmount = ?, 
-                tutorshipPaymentDate = ?, tutorshipPaymentDuration = ? WHERE id = ?` : null;
+          const updateUserQuery = payment_type === 'Membership Payment' ? 
+              `UPDATE users SET membershipPayment = ?, membershipPaymentAmount = ?, 
+              membershipPaymentDate = ?, membershipPaymentDuration = ? WHERE id = ?` :
+              payment_type === 'Tutorship Payment' ? 
+              `UPDATE users SET tutorshipPayment = ?, tutorshipPaymentAmount = ?, 
+              tutorshipPaymentDate = ?, tutorshipPaymentDuration = ? WHERE id = ?` : null;
 
-            db.query(
-                insertPaymentQuery,
-                [userId, sanitizedEmail, dollar_amount, rate, amount, payment_type, paymentStatus, 
-                paymentDuration, paymentDate, phoneNumber, transactionId, fullname, createdBy, 
-                updatedBy, paymentMethod, transactionReference, currency],
-                async (err, result) => {
-                    if (err) return res.status(500).json({ message: 'Error creating payment', error: err });
+          db.query(
+              insertPaymentQuery,
+              [userId, sanitizedEmail, dollar_amount, rate, amount, payment_type, paymentStatus, 
+              paymentDuration, paymentDate, phoneNumber, transactionId, fullname, createdBy, 
+              updatedBy, paymentMethod, transactionReference, currency],
+              async (err, paymentResult) => {
+                  if (err) return res.status(500).json({ message: 'Error creating payment', error: err });
+                  
+                  const paymentId = paymentResult.insertId;
 
-                    // Update user membership details
-                    db.query(
-                        updateUserQuery,
-                        [paymentStatus, amount, paymentDate, paymentDuration, userId],
-                        async (err, updateResult) => {
-                            if (err) {
-                                console.error('Error updating user membership:', err);
-                                return res.status(500).json({ message: 'Error updating membership details', error: err });
-                            }
+                  // Skip the user update if no valid payment type
+                  if (!updateUserQuery) {
+                      // Process other steps (notification, email) and send response
+                      return processPaymentCompletion(
+                          userId, sanitizedEmail, dollar_amount, rate, amount, payment_type, 
+                          paymentStatus, paymentDuration, paymentDate, phoneNumber, transactionId, 
+                          fullname, createdBy, updatedBy, paymentMethod, transactionReference, 
+                          currency, paymentId, expoPushToken, res
+                      );
+                  }
 
-                            // Send push notification & store in database if Membership Payment is completed
-                            if (payment_type === 'Membership Payment' && paymentStatus.toLowerCase() === 'completed') {
-                                const title = `Membership Payment Completed!`;
-                                const message = `🎉 Congratulations ${fullname}! You are now an official member of Mahjong Clinic Nigeria. Welcome aboard! 🚀🔥`;
+                  // Update user membership/tutorship details if needed
+                  db.query(
+                      updateUserQuery,
+                      [paymentStatus, amount, paymentDate, paymentDuration, userId],
+                      async (err) => {
+                          if (err) {
+                              console.error('Error updating user details:', err);
+                              return res.status(500).json({ 
+                                  message: `Error updating ${payment_type.toLowerCase()} details`, 
+                                  error: err 
+                              });
+                          }
 
-                                insertNotification(userId, title, message, email, res); // Store notification
-
-                                if (expoPushToken) {
-                                    await sendPushNotification(expoPushToken, title, message);
-                                }
-                            }
-
-                            // Send payment email
-                            const emailSent = await sendPaymentEmail(
-                                sanitizedEmail, dollar_amount, rate, amount, payment_type, paymentStatus,
-                                paymentDuration, paymentDate, phoneNumber, transactionId, fullname
-                            );
-
-                            res.status(200).json({
-                                message: emailSent
-                                    ? 'Payment recorded successfully, email sent!'
-                                    : 'Payment recorded successfully, but email failed to send.',
-                                data: {
-                                    paymentId: result.insertId,
-                                    userId, email: sanitizedEmail, dollar_amount, rate, amount, 
-                                    payment_type, paymentStatus, paymentDuration, paymentDate, 
-                                    phoneNumber, transactionId, fullname, createdBy, updatedBy, 
-                                    paymentMethod, transactionReference, currency
-                                }
-                            });
-                        }
-                    );
-                }
-            );
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
+                          // Process other steps (notification, email) and send response
+                          await processPaymentCompletion(
+                              userId, sanitizedEmail, dollar_amount, rate, amount, payment_type, 
+                              paymentStatus, paymentDuration, paymentDate, phoneNumber, transactionId, 
+                              fullname, createdBy, updatedBy, paymentMethod, transactionReference, 
+                              currency, paymentId, expoPushToken, res
+                          );
+                      }
+                  );
+              }
+          );
+      });
+  } catch (error) {
+      res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
-
-
-const insertNotification = (userId, title, message, email, res) => {
-  const insertQuery = `
-      INSERT INTO notifications (userId, title, message, createdBy, updatedBy)
-      VALUES (?, ?, ?, ?, ?)
-  `;
-  const values = [userId, title, message, email, email];
-
-  db.query(insertQuery, values, (err, result) => {
-      if (err) {
-          console.error('Database error inserting notification:', err);
-          return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
+// Helper function to process the final steps after payment is recorded
+const processPaymentCompletion = async (
+  userId, email, dollar_amount, rate, amount, payment_type, paymentStatus,
+  paymentDuration, paymentDate, phoneNumber, transactionId, fullname,
+  createdBy, updatedBy, paymentMethod, transactionReference, currency,
+  paymentId, expoPushToken, res
+) => {
+  try {
+      let notificationSent = false;
+      let notificationTitle = null;
+      let notificationMessage = null;
+      
+      // Only send notification if payment was successful
+      if (paymentStatus.toLowerCase() === 'successful') {
+          // Prepare notification data
+          if (payment_type === 'Membership Payment') {
+              notificationTitle = 'Membership Payment Completed!';
+              notificationMessage = `🎉 Congratulations ${fullname}! You are now an official member of Mahjong Clinic Nigeria. Welcome aboard! 🚀🔥`;
+          } else if (payment_type === 'Tutorship Payment') {
+              notificationTitle = 'Tutorship Payment Completed!';
+              notificationMessage = `🎉 Congratulations ${fullname}! You are now a student at Mahjong Clinic Nigeria. Welcome aboard! 🚀🔥`;
+          } else {
+              notificationTitle = 'Payment Completed!';
+              notificationMessage = `🎉 Thank you ${fullname}! Your payment of ${currency} ${amount} has been successfully processed.`;
+          }
+          
+          // Store notification in database
+          await storeNotification(userId, notificationTitle, notificationMessage, email);
+          
+          // Send push notification if token exists
+          if (expoPushToken) {
+              notificationSent = await sendPushNotification(expoPushToken, notificationTitle, notificationMessage);
+          }
       }
+      
+      // Send payment email
+      const emailSent = await sendPaymentEmail(
+          email, dollar_amount, rate, amount, payment_type, paymentStatus,
+          paymentDuration, paymentDate, phoneNumber, transactionId, fullname
+      );
+      
+      // Send response
+      return res.status(200).json({
+          message: emailSent
+              ? 'Payment recorded successfully, email sent!'
+              : 'Payment recorded successfully, but email failed to send.',
+          data: {
+              paymentId,
+              userId, 
+              email, 
+              dollar_amount, 
+              rate, 
+              amount, 
+              payment_type, 
+              paymentStatus, 
+              paymentDuration, 
+              paymentDate, 
+              phoneNumber, 
+              transactionId, 
+              fullname, 
+              createdBy, 
+              updatedBy, 
+              paymentMethod, 
+              transactionReference, 
+              currency,
+              notification: paymentStatus.toLowerCase() === 'successful' ? {
+                  sent: notificationSent,
+                  title: notificationTitle,
+                  message: notificationMessage
+              } : null
+          }
+      });
+  } catch (error) {
+      console.error('Error in payment completion process:', error);
+      return res.status(500).json({ 
+          message: 'Payment recorded but there was an error with notification or email', 
+          error: error.message 
+      });
+  }
+};
 
-      const notificationId = result.insertId;
+// Store notification in database
+const storeNotification = (userId, title, message, email) => {
+  return new Promise((resolve, reject) => {
+      const insertQuery = `
+          INSERT INTO notifications (userId, title, message, createdBy, updatedBy)
+          VALUES (?, ?, ?, ?, ?)
+      `;
+      const values = [userId, title, message, email, email];
 
-      // Fetch the user's push token
-      db.query('SELECT expoPushToken FROM users WHERE id = ?', [userId], async (err, result) => {
+      db.query(insertQuery, values, (err, result) => {
           if (err) {
-              console.error('Database error fetching user token:', err);
-              return res.status(500).json({ status: 'Failed', message: 'Database error', error: err.message });
+              console.error('Database error inserting notification:', err);
+              return reject(err);
           }
 
-          let pushResult = false;
-          let pushSuccess = 0;
-          let pushFailure = 0;
-
-          if (result.length > 0 && result[0].expoPushToken) {
-              console.log(`Sending push notification to user ${userId} with token: ${result[0].expoPushToken}`);
-              pushResult = await sendPushNotification(result[0].expoPushToken, title, message);
-              pushSuccess = pushResult ? 1 : 0;
-              pushFailure = pushResult ? 0 : 1;
-          }
+          const notificationId = result.insertId;
 
           // Insert into user_notifications table
-          db.query('INSERT INTO user_notifications (notificationId, userId, isRead) VALUES (?, ?, ?)', 
+          db.query(
+              'INSERT INTO user_notifications (notificationId, userId, isRead) VALUES (?, ?, ?)', 
               [notificationId, userId, false], 
               (err) => {
                   if (err) {
                       console.error('Error inserting user notification:', err);
+                      return reject(err);
                   }
+                  resolve(notificationId);
               }
           );
-
-          res.status(200).json({
-              status: 'Successful',
-              message: 'Notification has been stored and sent successfully',
-              data: { 
-                  id: notificationId, 
-                  userId, 
-                  title, 
-                  message,
-                  pushStats: {
-                      attempted: result.length > 0 && result[0].expoPushToken ? 1 : 0,
-                      successful: pushSuccess,
-                      failed: pushFailure
-                  }
-              },
-          });
       });
   });
+};
+
+const sendPushNotification = async (expoPushToken, title, message) => {
+  if (!expoPushToken) {
+      console.log('No push token provided, skipping notification');
+      return false;
+  }
+
+  // Validate token format
+  if (!expoPushToken.startsWith('ExponentPushToken[') && !expoPushToken.startsWith('ExpoPushToken[')) {
+      console.error('Invalid token format:', expoPushToken);
+      return false;
+  }
+
+  try {
+      const notificationPayload = {
+          to: expoPushToken,
+          sound: 'default',
+          title: title,
+          body: message,
+          data: { // Optional data for your app to process
+              title: title,
+              message: message,
+              timestamp: new Date().toISOString()
+          },
+          priority: 'high', // Important for Android
+          channelId: 'default', // Must match the channel ID you created in your app
+          badge: 1, // For iOS
+          _displayInForeground: true // To ensure it shows when app is in foreground
+      };
+      
+      console.log('Sending push notification:', JSON.stringify(notificationPayload));
+      
+      const response = await axios.post(
+          'https://exp.host/--/api/v2/push/send',
+          notificationPayload,
+          {
+              headers: {
+                  'Accept': 'application/json',
+                  'Accept-encoding': 'gzip, deflate',
+                  'Content-Type': 'application/json',
+              }
+          }
+      );
+      
+      console.log('Push notification response:', response.data);
+      return true;
+  } catch (error) {
+      console.error('Error sending push notification:', error);
+      
+      // Better error logging
+      if (error.response) {
+          console.error('Server responded with:', error.response.status, error.response.data);
+      } else if (error.request) {
+          console.error('No response received from server');
+      } else {
+          console.error('Error setting up request:', error.message);
+      }
+      
+      return false;
+  }
 };
 
   
