@@ -57,9 +57,8 @@ export const createPayment = async (req, res) => {
     }
   
     try {
-      const { userId, email, dollar_amount, rate, amount, payment_type, phoneNumber, paymentDuration, transactionId, fullname, paymentMethod, transactionReference, currency } = req.body;
+      const { userId, email, dollar_amount, rate, amount, payment_type, phoneNumber, paymentDuration, transactionId, fullname, paymentMethod, transactionReference, currency, paymentStatus } = req.body;
       const sanitizedEmail = email.trim().toLowerCase();
-      const paymentStatus = 'Pending'; // Default status before confirmation
       const paymentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
       const createdBy = sanitizedEmail;
       const updatedBy = sanitizedEmail;

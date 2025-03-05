@@ -14,6 +14,6 @@ export const verifyToken = (req, res, next) => {
     req.user = decoded; // Add the decoded user to the request
     next(); // Proceed to the next middleware or route handler
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid token' });
+    return res.status(401).json({ message: 'Session expired please login again!' });
   }
 };

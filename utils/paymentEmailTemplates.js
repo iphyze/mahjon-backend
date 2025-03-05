@@ -95,20 +95,20 @@
              color: rgb(86, 86, 86) !important;
              font-size: 16px;
          }
-         .code-number{
-             position: relative;
-             width: 50%;
-             margin: 20px auto;
-             background-color: ${paymentStatus === 'Pending' ? '#f0f0f0' : paymentStatus === 'Successful' ? '#d4edda' : '#f8d7da'};
-             color: ${paymentStatus === 'Pending' ? '#ac1d21' : paymentStatus === 'Successful' ? '#d4edda' : '#d4edda'};
-             text-align: center;
-             padding: 10px;
-             border-radius: 3px;
-             margin-bottom: 20px;
-             font-size: 28px;
-             font-weight: 600;
-             border: 1px solid #ac1d21 !important;
-         }
+         .code-number {
+            position: relative;
+            width: 50%;
+            margin: 20px auto;
+            text-align: center;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 600;
+            background-color: ${paymentStatus === 'Pending' ? '#fff3cd' : paymentStatus === 'Successful' ? '#d4edda' : '#f8d7da'};
+            color: ${paymentStatus === 'Pending' ? '#856404' : paymentStatus === 'Successful' ? '#155724' : '#721c24'};
+            border: 1px solid ${paymentStatus === 'Pending' ? '#856404' : paymentStatus === 'Successful' ? '#155724' : '#721c24'} !important;
+        }
          .code-expiry{
              position: relative;
              width: 100%;
