@@ -6,8 +6,15 @@ import { check, validationResult } from 'express-validator';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import { passwordResetTemplate, emailVerificationTemplate, passwordVerifyTemplate, sendEmailVerificationTemplate, passwordUpdateTemplate } from '../../utils/emailTemplates.js';
+import axios from 'axios';
 
 dotenv.config();
+
+
+const TERMII_API_KEY = process.env.TERMII_API_KEY;
+const TERMII_SENDER_ID = process.env.TERMII_SENDER_ID;
+const TERMII_API_URL = process.env.TERMII_API_URL;
+
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -94,6 +101,29 @@ export const validateUpdatePassword = [
   check('newPassword').notEmpty().withMessage('New password is required.').isLength({ min: 8 }).withMessage('New password must be at least 8 characters long.')
 ];
 
+
+
+const sendVerificationSMS = async (to, emailCode) => {
+  try {
+    const response = await axios.post(TERMII_API_URL, {
+      api_key: TERMII_API_KEY,
+      to: to,
+      from: TERMII_SENDER_ID,
+      sms: `Your Mahjong Nigeria email verification code is: ${emailCode}. Valid for 2 hours.`,
+      type: 'plain',
+      channel: 'generic'
+    });
+
+    console.log(`Verification SMS sent to ${to}`);
+    return response.data.status === 'success';
+  } catch (error) {
+    console.error(`Error sending SMS to ${to}:`, error);
+    return false;
+  }
+};
+
+
+
 export const createUser = async (req, res) => {
   // Check validation errors
   const errors = validationResult(req);
@@ -142,7 +172,8 @@ export const createUser = async (req, res) => {
             if (err) return res.status(500).json({ message: 'Error creating user', error: err });
   
             const emailSent = await sendVerificationEmail(sanitizedEmail, emailCode, expiresAt, firstName);
-  
+            const smsSent = await sendVerificationSMS(country_code + number, emailCode);
+
             const token = jwt.sign(
               { sub: number, email: sanitizedEmail },
               process.env.JWT_SECRET,
@@ -150,7 +181,7 @@ export const createUser = async (req, res) => {
             );
   
             res.status(200).json({
-              message: emailSent
+              message: emailSent && smsSent
                 ? 'User registration was successful. Kindly verify your email!'
                 : 'User registration was successful, however we were not able to verify your email!.',
               data: {
@@ -183,6 +214,10 @@ export const createUser = async (req, res) => {
                 createdAt: timestamp,
                 updatedBy: email,
               },
+              verificationStatus: {
+                email: emailSent,
+                sms: smsSent
+              }
             });
           }
         );
