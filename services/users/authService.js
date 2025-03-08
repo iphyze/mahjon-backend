@@ -24,7 +24,10 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  debug: process.env.NODE_ENV !== 'production',
+  // debug: process.env.NODE_ENV !== 'production',
+  tls: {
+    rejectUnauthorized: true // Only use this in development
+  },
 });
 
 
@@ -109,7 +112,7 @@ const sendVerificationSMS = async (to, emailCode) => {
       api_key: TERMII_API_KEY,
       to: to,
       from: TERMII_SENDER_ID,
-      sms: `Your Mahjong Nigeria email verification code is: ${emailCode}. Valid for 2 hours.`,
+      sms: `Your Mahjong Nigeria verification code is: ${emailCode}. Valid for 2 hours.`,
       type: 'plain',
       channel: 'generic'
     });
@@ -177,7 +180,7 @@ export const createUser = async (req, res) => {
             const token = jwt.sign(
               { sub: number, email: sanitizedEmail },
               process.env.JWT_SECRET,
-              { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+              { expiresIn: process.env.JWT_EXPIRES_IN || '5d' }
             );
   
             res.status(200).json({
@@ -401,12 +404,16 @@ export const loginUser = async (req, res) => {
     
         // Use the sendVerificationEmail function instead of duplicating code
         const emailSent = await resendVerificationEmailHandler(email, emailCode, expiresAt, user.firstName);
+        const smsSent = await sendVerificationSMS(user.country_code + user.number, emailCode);
         
         if (emailSent) {
           res.status(200).json({
             message: 'Verification code sent successfully. Please check your email.',
             emailCode,
             expiresAt,
+            verificationStatus: {
+              sms: smsSent
+            }
           });
         } else {
           res.status(500).json({ message: 'Failed to send verification email. Please try again later.' });
