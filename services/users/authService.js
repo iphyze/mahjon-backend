@@ -25,9 +25,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
   // debug: process.env.NODE_ENV !== 'production',
-  tls: {
-    rejectUnauthorized: true // Only use this in development
-  },
 });
 
 
@@ -35,7 +32,8 @@ const sendVerificationEmail = async (to, emailCode, expiresAt, firstName) => {
   const mailOptions = {
     // from: '"Mahjong Nigeria Clinic" <noreply@yourdomain.com>',
     // from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
-    from: '"Mahjong Nigeria Clinic" <' + process.env.SMTP_USER + '>',
+    // from: '"Mahjong Nigeria Clinic" <' + process.env.SMTP_USER + '>',
+    from: `"Mahjong Nigeria Clinic" <${process.env.SMTP_USER}>`,
     to,
     subject: 'Welcome / Email Verification',
     html: emailVerificationTemplate(firstName, emailCode, expiresAt),
@@ -57,7 +55,8 @@ const resendVerificationEmailHandler = async (to, emailCode, expiresAt, firstNam
   const mailOptions = {
     // from: '"Mahjong Nigeria Clinic" <noreply@yourdomain.com>',
     // from: process.env.SMTP_USER || '"Your App Name" <noreply@yourdomain.com>',
-    from: '"Mahjong Nigeria Clinic" <' + process.env.SMTP_USER + '>',
+    // from: '"Mahjong Nigeria Clinic" <' + process.env.SMTP_USER + '>',
+    from: `"Mahjong Nigeria Clinic" <${process.env.SMTP_USER}>`,
     to,
     subject: 'Verify Your Email Address',
     html: sendEmailVerificationTemplate(firstName, emailCode, expiresAt),
@@ -406,18 +405,16 @@ export const loginUser = async (req, res) => {
         const emailSent = await resendVerificationEmailHandler(email, emailCode, expiresAt, user.firstName);
         const smsSent = await sendVerificationSMS(user.country_code + user.number, emailCode);
         
-        if (emailSent) {
+        // if (emailSent) {
           res.status(200).json({
             message: 'Verification code sent successfully. Please check your email.',
             emailCode,
             expiresAt,
-            verificationStatus: {
-              sms: smsSent
-            }
           });
-        } else {
-          res.status(500).json({ message: 'Failed to send verification email. Please try again later.' });
-        }
+        // } 
+        // else {
+        //   res.status(500).json({ message: 'Failed to send verification email. Please try again later.' });
+        // }
       });
     });
   };
