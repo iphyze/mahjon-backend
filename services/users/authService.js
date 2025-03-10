@@ -153,7 +153,7 @@ export const createUser = async (req, res) => {
 
     const [baseName, domain] = sanitizedEmail.split('@');
     const domainInitial = domain[0].toLowerCase(); // First letter of the domain
-    const userName = `${baseName}-${domainInitial}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const userName = `${baseName}${domainInitial}${Math.floor(1000 + Math.random() * 9000)}`;
 
 
     const checkUserQuery = 'SELECT id FROM users WHERE email = ? OR number = ?';
@@ -209,7 +209,7 @@ export const createUser = async (req, res) => {
                       tutorshipPaymentDuration,
                     }
                   },
-                role: 'User',
+                role: role,
                 token,
                 country_code,
                 number,
@@ -255,11 +255,13 @@ export const loginUser = async (req, res) => {
 
       const token = jwt.sign(
         {
-          sub: user.number, // Same as registerUser
+          id: user.id,
+          sub: user.number,
+          role: user.role,
           email: user.email,
         },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+        { expiresIn: process.env.JWT_EXPIRES_IN || '5d' }
       );
 
       return res.json({
@@ -270,6 +272,9 @@ export const loginUser = async (req, res) => {
           lastName: user.lastName,
           email: user.email,
           userName: user.userName,
+          image: user.image,
+          skillLevel: user.skillLevel,
+          role: user.role,
           isEmailVerified: user.isEmailVerified === 1,
           payments: 
                   {
@@ -287,7 +292,6 @@ export const loginUser = async (req, res) => {
                     }
           },
           emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
-          role: user.role || 'User',
           token,
           country_code: user.country_code,
           number: user.number,

@@ -3,6 +3,7 @@ import bodyParser from 'body-parser';
 import authRoutes from './routes/authRoutes.js'
 import usersRoutes from './routes/usersRoutes.js'
 import paymentsRoutes from './routes/paymentsRoutes.js'
+import gamesRoutes from './routes/gamesRoutes.js'
 import dotenv from 'dotenv';
 import cors from 'cors';
 
@@ -46,6 +47,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 
 app.use('/api/payment', paymentsRoutes);
+
+app.use('/api/games', gamesRoutes);
 
 
 // Server

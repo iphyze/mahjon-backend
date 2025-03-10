@@ -56,6 +56,8 @@ export const getAllUsers = (req, res) => {
       lastName: user.lastName,
       email: user.email,
       userName: user.userName,
+      image: user.image,
+      skillLevel: user.skillLevel,
       isEmailVerified: user.isEmailVerified,
       emailVerification: { emailCode: user.emailCode, expiresAt: user.expiresAt },
       payments: 
@@ -91,6 +93,16 @@ export const getAllUsers = (req, res) => {
 // Fetch individual user by ID
 export const getUserById = (req, res) => {
     const { id } = req.params; // Extract ID from request parameters
+    // const loggedInUserId = req.user.id;
+    // const loggedInUserRole = req.user.role;
+
+    // console.log(loggedInUserRole);
+
+    // // Prevent access if the logged-in user is not the owner of the data
+    // if (loggedInUserRole !== "Admin" && parseInt(id) !== parseInt(loggedInUserId)) {
+    //   return res.status(403).json({ message: "Access denied. You can only view your own pairings." });
+    // }
+
     const getUserQuery = 'SELECT * FROM users WHERE id = ?';
   
     db.query(getUserQuery, [id], (err, results) => {
@@ -109,7 +121,8 @@ export const getUserById = (req, res) => {
         lastName: results[0].lastName,
         email: results[0].email,
         userName: results[0].userName,
-        token: results[0].token,
+        image: results[0].image,
+        skillLevel: results[0].skillLevel,
         isEmailVerified: results[0].isEmailVerified,
         emailVerification: { emailCode: results[0].emailCode, expiresAt: results[0].expiresAt },
         payments: 
