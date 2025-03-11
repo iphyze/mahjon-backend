@@ -887,70 +887,92 @@ export const updatePushToken = (req, res) => {
 };
 
 
+// Keep this path since it matches your working upload location
 const UPLOAD_PATH = './imageUploads/mahjong-uploads/';
 
+// Ensure upload directory exists
+if (!fs.existsSync(UPLOAD_PATH)) {
+    fs.mkdirSync(UPLOAD_PATH, { recursive: true });
+}
+
 // Multer storage configuration
-// Configure Multer storage
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-      cb(null, UPLOAD_PATH); // Ensure this folder exists on the server
-  },
-  filename: function (req, file, cb) {
-      const ext = path.extname(file.originalname);
-      cb(null, `profile_${req.params.userId}${ext}`);
-  }
+    destination: function (req, file, cb) {
+        cb(null, UPLOAD_PATH);
+    },
+    filename: function (req, file, cb) {
+        const ext = path.extname(file.originalname);
+        let baseName = path.basename(file.originalname, ext).replace(/\s+/g, '_'); // Remove spaces
+
+        // Ensure uniqueness using timestamp
+        const timestamp = Date.now();
+        const uniqueFilename = `${baseName}_${timestamp}${ext}`;
+        
+        cb(null, uniqueFilename);
+    }
 });
 
-const upload = multer({ storage: storage }).single('image');
+// File filter function
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif'];
+    if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Only JPEG, JPG, PNG, WEBP, and AVIF files are allowed!'), false);
+    }
+};
 
+// Multer upload settings (max size 2MB)
+const upload = multer({
+    storage,
+    fileFilter,
+    limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
+}).single('image');
+
+// Update User Function
 export const updateUser = (req, res) => {
-  upload(req, res, (err) => {
-      if (err instanceof multer.MulterError) {
-          return res.status(400).json({ message: 'File upload error: ' + err.message });
-      } else if (err) {
-          return res.status(500).json({ message: 'Server error: ' + err.message });
-      }
+    upload(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: 'File upload error: ' + err.message });
+        } else if (err) {
+            return res.status(500).json({ message: 'Server error: ' + err.message });
+        }
 
-      const { userId } = req.params;
-      const { firstName, lastName } = req.body;
-      let imageUrl = null;
+        const { userId } = req.params;
+        const { firstName, lastName } = req.body;
+        let imageUrl = null;
 
-      // Handle new image upload
-      let newImageFilename = null;
-      if (req.file) {
-          const ext = path.extname(req.file.originalname);
-          newImageFilename = `user_${Date.now()}${ext}`;
-          fs.renameSync(req.file.path, path.join(UPLOAD_DIR, newImageFilename)); // Rename the file
-          imageUrl = `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${newImageFilename}`;
-      }
+        if (req.file) {
+            imageUrl = `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${req.file.filename}`;
+        }
 
-      const updateData = {};
-      if (firstName) updateData.firstName = firstName;
-      if (lastName) updateData.lastName = lastName;
-      if (newImageFilename) updateData.image = newImageFilename; // Store new filename
+        const updateData = {};
+        if (firstName) updateData.firstName = firstName;
+        if (lastName) updateData.lastName = lastName;
+        if (req.file) updateData.image = req.file.filename;
 
-      if (Object.keys(updateData).length === 0) {
-          return res.status(400).json({ message: "At least one field must be updated." });
-      }
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({ message: "At least one field must be updated." });
+        }
 
-      // Update the user in the database
-      db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
-          if (err) {
-              console.error('Update error:', err);
-              return res.status(500).json({ message: 'Error updating profile' });
-          }
+        // Update user in the database
+        db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
+            if (err) {
+                console.error('Update error:', err);
+                return res.status(500).json({ message: 'Error updating profile' });
+            }
 
-          if (result.affectedRows > 0) {
-              return res.status(200).json({
-                  message: 'Profile updated successfully',
-                  user: {
-                      ...updateData,
-                      image: imageUrl || null
-                  }
-              });
-          } else {
-              return res.status(404).json({ message: 'User not found' });
-          }
-      });
-  });
+            if (result.affectedRows > 0) {
+                return res.status(200).json({
+                    message: 'Profile updated successfully',
+                    user: {
+                        ...updateData,
+                        image: imageUrl || null
+                    }
+                });
+            } else {
+                return res.status(404).json({ message: 'User not found' });
+            }
+        });
+    });
 };
