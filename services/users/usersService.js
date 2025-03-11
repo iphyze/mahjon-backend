@@ -926,8 +926,6 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
 });
 
-
-// Update User Route
 // Update User Route
 export const updateUser = (req, res) => {
   upload.single('image')(req, res, (err) => {

@@ -12,7 +12,7 @@ const router = Router();
 router.get('/getAllUsers', verifyToken, getAllUsersHandler);
 router.get('/getSingleUser/:id', verifyToken, getSingleUserHandler);
 router.delete('/deleteUsers', verifyToken, deleteUsersHandler);
-router.put('/updateUser/:id', verifyToken, updateUserDataHandler);
+router.put('/updateUser/:userId', verifyToken, updateUserDataHandler);
 router.put('/updateUserData/:id', verifyToken, updateUserHandler);
 router.post('/notifications/addNotification', verifyToken, validateNotification, notificationHandler);
 router.get('/notifications/getNotifications/:userId', verifyToken, validateUserIdNotification, getUserNoticeHandler);
