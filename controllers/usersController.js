@@ -1,6 +1,6 @@
 import {getAllUsers, getUserById, deleteUsers, updateUserDetails, 
     sendNotification, getUserNotifications, markNotificationAsRead, 
-    updatePushToken
+    updatePushToken, updateUser
 } from '../services/users/usersService.js';
 
 
@@ -12,4 +12,5 @@ export const notificationHandler = sendNotification;
 export const getUserNoticeHandler = getUserNotifications;
 export const markNoticeHandler = markNotificationAsRead;
 export const updatePushTokenHandler = updatePushToken;
+export const updateUserDataHandler = updateUser;
 

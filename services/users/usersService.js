@@ -2,6 +2,9 @@ import db from '../../config/db.js';
 import dotenv from 'dotenv';
 import { check, validationResult } from 'express-validator';
 import axios from 'axios';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -879,4 +882,96 @@ export const updatePushToken = (req, res) => {
         }
         res.json({ status: 'Success', message: 'Push token saved successfully' });
     });
+};
+
+
+
+const UPLOAD_DIR = "/home/goldenr1/public_html/imageUploads/mahjong-uploads/"; 
+const BASE_URL = "https://uploads.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/"; // Public URL
+
+// Set up multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+      try {
+          if (!fs.existsSync(UPLOAD_DIR)) {
+              fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+          }
+          cb(null, UPLOAD_DIR);
+      } catch (error) {
+          cb(new Error("Failed to create upload directory"), null);
+      }
+  },
+  filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const fileName = `user_${Date.now()}${ext}`;
+      cb(null, fileName);
+  }
+});
+
+
+// File filter to allow only images
+// File filter to allow only images
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  allowedTypes.includes(file.mimetype) 
+      ? cb(null, true) 
+      : cb(new Error('Only JPEG, JPG, WEBP, and PNG files are allowed!'), false);
+};
+
+
+// Multer upload settings (max size 2MB)
+const upload = multer({ 
+  storage, 
+  fileFilter,
+  limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
+});
+
+
+// Update User Route
+// Update User Route
+export const updateUser = (req, res) => {
+  upload.single('image')(req, res, (err) => {
+      if (err) return res.status(400).json({ message: err.message });
+
+      const { userId } = req.params;
+      const { firstName, lastName } = req.body;
+      const image = req.file ? req.file.filename : null;
+
+      if (!firstName && !lastName && !image) {
+          return res.status(400).json({ message: "At least one field must be updated." });
+      }
+
+      let updateFields = [];
+      let values = [];
+
+      if (firstName) {
+          updateFields.push("firstName = ?");
+          values.push(firstName);
+      }
+
+      if (lastName) {
+          updateFields.push("lastName = ?");
+          values.push(lastName);
+      }
+
+      if (image) {
+          updateFields.push("image = ?");
+          values.push(image);
+      }
+
+      values.push(userId);
+
+      const updateUserQuery = `UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`;
+
+      db.query(updateUserQuery, values, (err, result) => {
+          if (err) return res.status(500).json({ message: "Database error", error: err });
+
+          const imageUrl = image ? `${BASE_URL}${image}` : null;
+
+          res.status(200).json({ 
+              message: "User updated successfully!", 
+              updatedFields: { firstName, lastName, image: imageUrl }
+          });
+      });
+  });
 };
