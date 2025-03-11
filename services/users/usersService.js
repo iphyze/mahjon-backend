@@ -924,48 +924,47 @@ const upload = multer({
     }
 });
 
-export const updateUser = async (req, res) => {
-  upload.single('image')(req, res, async (err) => {
+export const updateUser = (req, res) => {
+  upload.single('image')(req, res, (err) => {
       if (err instanceof multer.MulterError) {
           return res.status(400).json({ message: 'File upload error: ' + err.message });
       } else if (err) {
           return res.status(500).json({ message: 'Server error: ' + err.message });
       }
 
-      const connection = await db.getConnection();
+      const { userId } = req.params;
+      const { firstName, lastName } = req.body;
+      const imageFile = req.file;
 
-      try {
-          const { userId } = req.params;
-          const { firstName, lastName } = req.body;
-          const imageFile = req.file;
-
-          // Delete old image if exists
-          if (imageFile) {
-              try {
-                  const [rows] = await connection.query('SELECT image FROM users WHERE id = ?', [userId]);
-                  const user = rows[0];
-                  if (user?.image) {
-                      const oldImagePath = path.join(UPLOAD_PATH, user.image);
-                      if (fs.existsSync(oldImagePath)) {
-                          fs.unlinkSync(oldImagePath);
-                      }
+      // Delete old image if exists
+      if (imageFile) {
+          db.query('SELECT image FROM users WHERE id = ?', [userId], (err, results) => {
+              if (err) {
+                  console.error('Error fetching old image:', err);
+              } else if (results[0]?.image) {
+                  const oldImagePath = path.join(UPLOAD_PATH, results[0].image);
+                  if (fs.existsSync(oldImagePath)) {
+                      fs.unlinkSync(oldImagePath);
                   }
-              } catch (error) {
-                  console.error('Error deleting old image:', error);
               }
-          }
+          });
+      }
 
-          const updateData = {};
-          if (firstName) updateData.firstName = firstName;
-          if (lastName) updateData.lastName = lastName;
-          if (imageFile) {
-              updateData.image = imageFile.filename;
-          }
+      const updateData = {};
+      if (firstName) updateData.firstName = firstName;
+      if (lastName) updateData.lastName = lastName;
+      if (imageFile) {
+          updateData.image = imageFile.filename;
+      }
 
-          const [result] = await connection.query(
-              'UPDATE users SET ? WHERE id = ?',
-              [updateData, userId]
-          );
+      db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
+          if (err) {
+              console.error('Update error:', err);
+              return res.status(500).json({ 
+                  message: 'Error updating profile',
+                  error: err.message 
+              });
+          }
 
           if (result.affectedRows > 0) {
               const imageUrl = imageFile ? 
@@ -982,14 +981,6 @@ export const updateUser = async (req, res) => {
           } else {
               return res.status(404).json({ message: 'User not found' });
           }
-      } catch (error) {
-          console.error('Update error:', error);
-          return res.status(500).json({ 
-              message: 'Error updating profile',
-              error: error.message 
-          });
-      } finally {
-          connection.release(); // Release the connection back to the pool
-      }
+      });
   });
 };
