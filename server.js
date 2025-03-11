@@ -6,6 +6,9 @@ import paymentsRoutes from './routes/paymentsRoutes.js'
 import gamesRoutes from './routes/gamesRoutes.js'
 import dotenv from 'dotenv';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -16,6 +19,23 @@ app.use(cors());
 
 // Middleware
 app.use(bodyParser.json());
+
+
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Create upload directory if it doesn't exist
+const UPLOAD_PATH = path.join(__dirname, '../imageUploads/mahjong-uploads');
+if (!fs.existsSync(UPLOAD_PATH)) {
+    fs.mkdirSync(UPLOAD_PATH, { recursive: true });
+}
+
+// Serve static files
+app.use('/imageUploads', express.static(path.join(__dirname, '../imageUploads')));
+
+
 
 
 // Welcome route for base endpoint
