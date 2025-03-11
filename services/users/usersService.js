@@ -930,121 +930,121 @@ const upload = multer({
 }).single('image');
 
 // Update User Function
-// export const updateUser = (req, res) => {
-//     upload(req, res, (err) => {
-//         if (err instanceof multer.MulterError) {
-//             return res.status(400).json({ message: 'File upload error: ' + err.message });
-//         } else if (err) {
-//             return res.status(500).json({ message: 'Server error: ' + err.message });
-//         }
-
-//         const { userId } = req.params;
-//         const { firstName, lastName } = req.body;
-//         let imageUrl = null;
-
-//         if (req.file) {
-//             imageUrl = `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${req.file.filename}`;
-//         }
-
-//         const updateData = {};
-//         if (firstName) updateData.firstName = firstName;
-//         if (lastName) updateData.lastName = lastName;
-//         if (req.file) updateData.image = req.file.filename;
-
-//         if (Object.keys(updateData).length === 0) {
-//             return res.status(400).json({ message: "At least one field must be updated." });
-//         }
-
-//         // Update user in the database
-//         db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
-//             if (err) {
-//                 console.error('Update error:', err);
-//                 return res.status(500).json({ message: 'Error updating profile' });
-//             }
-
-//             if (result.affectedRows > 0) {
-//                 return res.status(200).json({
-//                     message: 'Profile updated successfully',
-//                     user: {
-//                         ...updateData,
-//                         image: imageUrl || null
-//                     }
-//                 });
-//             } else {
-//                 return res.status(404).json({ message: 'User not found' });
-//             }
-//         });
-//     });
-// };
-
-
 export const updateUser = (req, res) => {
-  upload(req, res, (err) => {
-      if (err instanceof multer.MulterError) {
-          return res.status(400).json({ message: "File upload error: " + err.message });
-      } else if (err) {
-          return res.status(500).json({ message: "Server error: " + err.message });
-      }
+    upload(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: 'File upload error: ' + err.message });
+        } else if (err) {
+            return res.status(500).json({ message: 'Server error: ' + err.message });
+        }
 
-      console.log("Uploaded file:", req.file); // Debugging
+        const { userId } = req.params;
+        const { firstName, lastName } = req.body;
+        let imageUrl = null;
 
-      const { userId } = req.params;
-      const { firstName, lastName, existingImage } = req.body; // Capture existing image
-      let newImageFilename = null;
+        if (req.file) {
+            imageUrl = `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${req.file.filename}`;
+        }
 
-      // Check if an image was uploaded
-      if (req.file) {
-          const ext = path.extname(req.file.originalname);
-          newImageFilename = `user_${Date.now()}${ext}`;
+        const updateData = {};
+        if (firstName) updateData.firstName = firstName;
+        if (lastName) updateData.lastName = lastName;
+        if (req.file) updateData.image = req.file.filename;
 
-          const oldPath = req.file.path;
-          const newPath = path.join(UPLOAD_DIR, newImageFilename);
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({ message: "At least one field must be updated." });
+        }
 
-          fs.rename(oldPath, newPath, (err) => {
-              if (err) {
-                  console.error("File rename error:", err);
-                  return res.status(500).json({ message: "Failed to save image file" });
-              }
+        // Update user in the database
+        db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
+            if (err) {
+                console.error('Update error:', err);
+                return res.status(500).json({ message: 'Error updating profile' });
+            }
 
-              updateUserInDatabase();
-          });
-      } else {
-          updateUserInDatabase();
-      }
-
-      function updateUserInDatabase() {
-          const updateData = {};
-          if (firstName) updateData.firstName = firstName;
-          if (lastName) updateData.lastName = lastName;
-          if (newImageFilename) {
-              updateData.image = newImageFilename;
-          }
-
-          // If no updates, return "No changes made!"
-          if (Object.keys(updateData).length === 0) {
-              return res.status(400).json({ message: "No changes made!" });
-          }
-
-          db.query("UPDATE users SET ? WHERE id = ?", [updateData, userId], (err, result) => {
-              if (err) {
-                  console.error("Update error:", err);
-                  return res.status(500).json({ message: "Error updating profile" });
-              }
-
-              if (result.affectedRows > 0) {
-                  return res.status(200).json({
-                      message: "Profile updated successfully",
-                      user: {
-                          ...updateData,
-                          image: newImageFilename
-                              ? `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${newImageFilename}`
-                              : existingImage || null,
-                      },
-                  });
-              } else {
-                  return res.status(404).json({ message: "User not found" });
-              }
-          });
-      }
-  });
+            if (result.affectedRows > 0) {
+                return res.status(200).json({
+                    message: 'Profile updated successfully',
+                    user: {
+                        ...updateData,
+                        image: imageUrl || null
+                    }
+                });
+            } else {
+                return res.status(404).json({ message: 'User not found' });
+            }
+        });
+    });
 };
+
+
+// export const updateUser = (req, res) => {
+//   upload(req, res, (err) => {
+//       if (err instanceof multer.MulterError) {
+//           return res.status(400).json({ message: "File upload error: " + err.message });
+//       } else if (err) {
+//           return res.status(500).json({ message: "Server error: " + err.message });
+//       }
+
+//       console.log("Uploaded file:", req.file); // Debugging
+
+//       const { userId } = req.params;
+//       const { firstName, lastName, existingImage } = req.body; // Capture existing image
+//       let newImageFilename = null;
+
+//       // Check if an image was uploaded
+//       if (req.file) {
+//           const ext = path.extname(req.file.originalname);
+//           newImageFilename = `user_${Date.now()}${ext}`;
+
+//           const oldPath = req.file.path;
+//           const newPath = path.join(UPLOAD_DIR, newImageFilename);
+
+//           fs.rename(oldPath, newPath, (err) => {
+//               if (err) {
+//                   console.error("File rename error:", err);
+//                   return res.status(500).json({ message: "Failed to save image file" });
+//               }
+
+//               updateUserInDatabase();
+//           });
+//       } else {
+//           updateUserInDatabase();
+//       }
+
+//       function updateUserInDatabase() {
+//           const updateData = {};
+//           if (firstName) updateData.firstName = firstName;
+//           if (lastName) updateData.lastName = lastName;
+//           if (newImageFilename) {
+//               updateData.image = newImageFilename;
+//           }
+
+//           // If no updates, return "No changes made!"
+//           if (Object.keys(updateData).length === 0) {
+//               return res.status(400).json({ message: "No changes made!" });
+//           }
+
+//           db.query("UPDATE users SET ? WHERE id = ?", [updateData, userId], (err, result) => {
+//               if (err) {
+//                   console.error("Update error:", err);
+//                   return res.status(500).json({ message: "Error updating profile" });
+//               }
+
+//               if (result.affectedRows > 0) {
+//                   return res.status(200).json({
+//                       message: "Profile updated successfully",
+//                       user: {
+//                           ...updateData,
+//                           image: newImageFilename
+//                               ? `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${newImageFilename}`
+//                               : existingImage || null,
+//                       },
+//                   });
+//               } else {
+//                   return res.status(404).json({ message: "User not found" });
+//               }
+//           });
+//       }
+//   });
+// };
