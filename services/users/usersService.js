@@ -913,58 +913,44 @@ export const updateUser = (req, res) => {
 
       const { userId } = req.params;
       const { firstName, lastName } = req.body;
-      const imageFile = req.file;
       let imageUrl = null;
 
-      if (imageFile) {
-          imageUrl = `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${imageFile.filename}`;
+      // Handle new image upload
+      let newImageFilename = null;
+      if (req.file) {
+          const ext = path.extname(req.file.originalname);
+          newImageFilename = `user_${Date.now()}${ext}`;
+          fs.renameSync(req.file.path, path.join(UPLOAD_DIR, newImageFilename)); // Rename the file
+          imageUrl = `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${newImageFilename}`;
       }
 
-      // Fetch old image before updating user details
-      db.query('SELECT image FROM users WHERE id = ?', [userId], (err, results) => {
+      const updateData = {};
+      if (firstName) updateData.firstName = firstName;
+      if (lastName) updateData.lastName = lastName;
+      if (newImageFilename) updateData.image = newImageFilename; // Store new filename
+
+      if (Object.keys(updateData).length === 0) {
+          return res.status(400).json({ message: "At least one field must be updated." });
+      }
+
+      // Update the user in the database
+      db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
           if (err) {
-              console.error('Error fetching user:', err);
-              return res.status(500).json({ message: 'Database error' });
+              console.error('Update error:', err);
+              return res.status(500).json({ message: 'Error updating profile' });
           }
 
-          if (results.length === 0) {
+          if (result.affectedRows > 0) {
+              return res.status(200).json({
+                  message: 'Profile updated successfully',
+                  user: {
+                      ...updateData,
+                      image: imageUrl || null
+                  }
+              });
+          } else {
               return res.status(404).json({ message: 'User not found' });
           }
-
-          const oldImage = results[0].image;
-          if (oldImage && imageFile) {
-              const oldImagePath = path.join(UPLOAD_PATH, oldImage);
-              if (fs.existsSync(oldImagePath)) {
-                  fs.unlink(oldImagePath, (err) => {
-                      if (err) console.error('Error deleting old image:', err);
-                  });
-              }
-          }
-
-          const updateData = {};
-          if (firstName) updateData.firstName = firstName;
-          if (lastName) updateData.lastName = lastName;
-          if (imageFile) updateData.image = imageFile.filename;
-
-          // Update the user in the database
-          db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
-              if (err) {
-                  console.error('Update error:', err);
-                  return res.status(500).json({ message: 'Error updating profile' });
-              }
-
-              if (result.affectedRows > 0) {
-                  return res.status(200).json({
-                      message: 'Profile updated successfully',
-                      user: {
-                          ...updateData,
-                          image: imageUrl || `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${oldImage}`
-                      }
-                  });
-              } else {
-                  return res.status(404).json({ message: 'User not found' });
-              }
-          });
       });
   });
 };
