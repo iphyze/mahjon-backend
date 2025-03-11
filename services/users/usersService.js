@@ -925,63 +925,71 @@ const upload = multer({
 });
 
 export const updateUser = async (req, res) => {
-    upload.single('image')(req, res, async (err) => {
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({ message: 'File upload error: ' + err.message });
-        } else if (err) {
-            return res.status(500).json({ message: 'Server error: ' + err.message });
-        }
+  upload.single('image')(req, res, async (err) => {
+      if (err instanceof multer.MulterError) {
+          return res.status(400).json({ message: 'File upload error: ' + err.message });
+      } else if (err) {
+          return res.status(500).json({ message: 'Server error: ' + err.message });
+      }
 
-        try {
-            const { userId } = req.params;
-            const { firstName, lastName } = req.body;
-            const imageFile = req.file;
+      const connection = await db.getConnection();
 
-            // Delete old image if exists
-            if (imageFile) {
-                try {
-                    const [user] = await db.query('SELECT image FROM users WHERE id = ?', [userId]);
-                    if (user?.image) {
-                        const oldImagePath = path.join(UPLOAD_PATH, user.image);
-                        if (fs.existsSync(oldImagePath)) {
-                            fs.unlinkSync(oldImagePath);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error deleting old image:', error);
-                }
-            }
+      try {
+          const { userId } = req.params;
+          const { firstName, lastName } = req.body;
+          const imageFile = req.file;
 
-            const updateData = {};
-            if (firstName) updateData.firstName = firstName;
-            if (lastName) updateData.lastName = lastName;
-            if (imageFile) {
-                updateData.image = imageFile.filename;
-            }
+          // Delete old image if exists
+          if (imageFile) {
+              try {
+                  const [rows] = await connection.query('SELECT image FROM users WHERE id = ?', [userId]);
+                  const user = rows[0];
+                  if (user?.image) {
+                      const oldImagePath = path.join(UPLOAD_PATH, user.image);
+                      if (fs.existsSync(oldImagePath)) {
+                          fs.unlinkSync(oldImagePath);
+                      }
+                  }
+              } catch (error) {
+                  console.error('Error deleting old image:', error);
+              }
+          }
 
-            const [result] = await db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId]);
+          const updateData = {};
+          if (firstName) updateData.firstName = firstName;
+          if (lastName) updateData.lastName = lastName;
+          if (imageFile) {
+              updateData.image = imageFile.filename;
+          }
 
-            if (result.affectedRows > 0) {
-                const imageUrl = imageFile ? 
-                    `https://uploads.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${imageFile.filename}` : 
-                    null;
+          const [result] = await connection.query(
+              'UPDATE users SET ? WHERE id = ?',
+              [updateData, userId]
+          );
 
-                return res.status(200).json({
-                    message: 'Profile updated successfully',
-                    user: {
-                        ...updateData,
-                        image: imageUrl
-                    }
-                });
-            } else {
-                return res.status(404).json({ message: 'User not found' });
-            }
-        } catch (error) {
-            console.error('Update error:', error);
-            return res.status(500).json({ 
-                message: 'Error updating profile',
-                error: error.message 
-            });
-        }
-    });
+          if (result.affectedRows > 0) {
+              const imageUrl = imageFile ? 
+                  `https://uploads.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${imageFile.filename}` : 
+                  null;
+
+              return res.status(200).json({
+                  message: 'Profile updated successfully',
+                  user: {
+                      ...updateData,
+                      image: imageUrl
+                  }
+              });
+          } else {
+              return res.status(404).json({ message: 'User not found' });
+          }
+      } catch (error) {
+          console.error('Update error:', error);
+          return res.status(500).json({ 
+              message: 'Error updating profile',
+              error: error.message 
+          });
+      } finally {
+          connection.release(); // Release the connection back to the pool
+      }
+  });
 };
