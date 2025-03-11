@@ -6,6 +6,7 @@ import paymentsRoutes from './routes/paymentsRoutes.js'
 import gamesRoutes from './routes/gamesRoutes.js'
 import dotenv from 'dotenv';
 import cors from 'cors';
+import path from 'path';
 
 dotenv.config();
 
@@ -16,6 +17,11 @@ app.use(cors());
 
 // Middleware
 app.use(bodyParser.json());
+
+
+
+// ✅ Serve static files for images
+app.use('/imageUploads', express.static(path.join(process.cwd(), 'imageUploads')))
 
 
 // Welcome route for base endpoint

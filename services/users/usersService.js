@@ -887,45 +887,24 @@ export const updatePushToken = (req, res) => {
 };
 
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const UPLOAD_PATH = './imageUploads/mahjong-uploads/';
 
-// Define upload path
-const UPLOAD_PATH = path.join(__dirname, '../../../imageUploads/mahjong-uploads');
-
-// Create upload directory if it doesn't exist
-if (!fs.existsSync(UPLOAD_PATH)) {
-    fs.mkdirSync(UPLOAD_PATH, { recursive: true });
-}
-
-// Configure multer storage
+// Multer storage configuration
+// Configure Multer storage
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, UPLOAD_PATH);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, `profile-${uniqueSuffix}${ext}`);
-    }
+  destination: function (req, file, cb) {
+      cb(null, UPLOAD_PATH); // Ensure this folder exists on the server
+  },
+  filename: function (req, file, cb) {
+      const ext = path.extname(file.originalname);
+      cb(null, `profile_${req.params.userId}${ext}`);
+  }
 });
 
-// Configure upload middleware
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-    fileFilter: (req, file, cb) => {
-        const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (allowedMimes.includes(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Invalid file type. Only JPEG, PNG, GIF and WEBP are allowed.'));
-        }
-    }
-});
+const upload = multer({ storage: storage }).single('image');
 
 export const updateUser = (req, res) => {
-  upload.single('image')(req, res, (err) => {
+  upload(req, res, (err) => {
       if (err instanceof multer.MulterError) {
           return res.status(400).json({ message: 'File upload error: ' + err.message });
       } else if (err) {
@@ -935,52 +914,57 @@ export const updateUser = (req, res) => {
       const { userId } = req.params;
       const { firstName, lastName } = req.body;
       const imageFile = req.file;
+      let imageUrl = null;
 
-      // Delete old image if exists
       if (imageFile) {
-          db.query('SELECT image FROM users WHERE id = ?', [userId], (err, results) => {
-              if (err) {
-                  console.error('Error fetching old image:', err);
-              } else if (results[0]?.image) {
-                  const oldImagePath = path.join(UPLOAD_PATH, results[0].image);
-                  if (fs.existsSync(oldImagePath)) {
-                      fs.unlinkSync(oldImagePath);
-                  }
-              }
-          });
+          imageUrl = `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${imageFile.filename}`;
       }
 
-      const updateData = {};
-      if (firstName) updateData.firstName = firstName;
-      if (lastName) updateData.lastName = lastName;
-      if (imageFile) {
-          updateData.image = imageFile.filename;
-      }
-
-      db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
+      // Fetch old image before updating user details
+      db.query('SELECT image FROM users WHERE id = ?', [userId], (err, results) => {
           if (err) {
-              console.error('Update error:', err);
-              return res.status(500).json({ 
-                  message: 'Error updating profile',
-                  error: err.message 
-              });
+              console.error('Error fetching user:', err);
+              return res.status(500).json({ message: 'Database error' });
           }
 
-          if (result.affectedRows > 0) {
-              const imageUrl = imageFile ? 
-                  `https://uploads.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${imageFile.filename}` : 
-                  null;
-
-              return res.status(200).json({
-                  message: 'Profile updated successfully',
-                  user: {
-                      ...updateData,
-                      image: imageUrl
-                  }
-              });
-          } else {
+          if (results.length === 0) {
               return res.status(404).json({ message: 'User not found' });
           }
+
+          const oldImage = results[0].image;
+          if (oldImage && imageFile) {
+              const oldImagePath = path.join(UPLOAD_PATH, oldImage);
+              if (fs.existsSync(oldImagePath)) {
+                  fs.unlink(oldImagePath, (err) => {
+                      if (err) console.error('Error deleting old image:', err);
+                  });
+              }
+          }
+
+          const updateData = {};
+          if (firstName) updateData.firstName = firstName;
+          if (lastName) updateData.lastName = lastName;
+          if (imageFile) updateData.image = imageFile.filename;
+
+          // Update the user in the database
+          db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
+              if (err) {
+                  console.error('Update error:', err);
+                  return res.status(500).json({ message: 'Error updating profile' });
+              }
+
+              if (result.affectedRows > 0) {
+                  return res.status(200).json({
+                      message: 'Profile updated successfully',
+                      user: {
+                          ...updateData,
+                          image: imageUrl || `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${oldImage}`
+                      }
+                  });
+              } else {
+                  return res.status(404).json({ message: 'User not found' });
+              }
+          });
       });
   });
 };
