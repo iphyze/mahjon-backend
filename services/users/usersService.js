@@ -930,51 +930,79 @@ const upload = multer({
 }).single('image');
 
 // Update User Function
+// Backend code
 export const updateUser = (req, res) => {
-    upload(req, res, (err) => {
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({ message: 'File upload error: ' + err.message });
-        } else if (err) {
-            return res.status(500).json({ message: 'Server error: ' + err.message });
-        }
+  // Check if there's an image file in the request
+  const hasImageFile = req.files && Object.keys(req.files).length > 0;
 
-        const { userId } = req.params;
-        const { firstName, lastName } = req.body;
-        let imageUrl = null;
+  // If no image file, skip multer and process other fields
+  if (!hasImageFile) {
+      const { userId } = req.params;
+      const { firstName, lastName } = req.body;
 
-        if (req.file) {
-            imageUrl = `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${req.file.filename}`;
-        }
+      const updateData = {};
+      if (firstName) updateData.firstName = firstName;
+      if (lastName) updateData.lastName = lastName;
 
-        const updateData = {};
-        if (firstName) updateData.firstName = firstName;
-        if (lastName) updateData.lastName = lastName;
-        if (req.file) updateData.image = req.file.filename;
+      if (Object.keys(updateData).length === 0) {
+          return res.status(400).json({ message: "At least one field must be updated." });
+      }
 
-        if (Object.keys(updateData).length === 0) {
-            return res.status(400).json({ message: "At least one field must be updated." });
-        }
+      // Update user without image
+      db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
+          if (err) {
+              console.error('Update error:', err);
+              return res.status(500).json({ message: 'Error updating profile' });
+          }
 
-        // Update user in the database
-        db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
-            if (err) {
-                console.error('Update error:', err);
-                return res.status(500).json({ message: 'Error updating profile' });
-            }
+          if (result.affectedRows > 0) {
+              return res.status(200).json({
+                  message: 'Profile updated successfully',
+                  user: updateData
+              });
+          } else {
+              return res.status(404).json({ message: 'User not found' });
+          }
+      });
+  } else {
+      // Process with multer if image is present
+      upload(req, res, (err) => {
+          if (err instanceof multer.MulterError) {
+              return res.status(400).json({ message: 'File upload error: ' + err.message });
+          } else if (err) {
+              return res.status(500).json({ message: 'Server error: ' + err.message });
+          }
 
-            if (result.affectedRows > 0) {
-                return res.status(200).json({
-                    message: 'Profile updated successfully',
-                    user: {
-                        ...updateData,
-                        image: imageUrl || null
-                    }
-                });
-            } else {
-                return res.status(404).json({ message: 'User not found' });
-            }
-        });
-    });
+          const { userId } = req.params;
+          const { firstName, lastName } = req.body;
+          const imageUrl = `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${req.file.filename}`;
+
+          const updateData = {};
+          if (firstName) updateData.firstName = firstName;
+          if (lastName) updateData.lastName = lastName;
+          if (req.file) updateData.image = req.file.filename;
+
+          // Update user with image
+          db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
+              if (err) {
+                  console.error('Update error:', err);
+                  return res.status(500).json({ message: 'Error updating profile' });
+              }
+
+              if (result.affectedRows > 0) {
+                  return res.status(200).json({
+                      message: 'Profile updated successfully',
+                      user: {
+                          ...updateData,
+                          image: imageUrl
+                      }
+                  });
+              } else {
+                  return res.status(404).json({ message: 'User not found' });
+              }
+          });
+      });
+  }
 };
 
 
