@@ -925,46 +925,32 @@ const fileFilter = (req, file, cb) => {
 // Combined Update User Function
 export const updateUser = (req, res) => {
   try {
-      // More robust header checking
-      let isImageUpdate = false;
+      // Check if this is an image update request
+      const isImageUpdate = req.headers['x-update-image'] === 'true';
       
-      // Check header in multiple ways
-      if ('x-update-image' in req.headers) {
-          isImageUpdate = req.headers['x-update-image'] === 'true';
-      } else if ('X-Update-Image' in req.headers) {
-          isImageUpdate = req.headers['X-Update-Image'] === 'true';
-      }
-      
-      console.log('Request headers:', req.headers);
-      console.log('Image update flag:', isImageUpdate);
-      
-      // If no image update needed, process without multer
-      if (!isImageUpdate) {
-          console.log('Skipping image upload, processing update directly');
-          processUserUpdate(req, res, null);
-          return;
-      }
-      
-      // Configure multer for image upload
-      const upload = multer({
-          storage,
-          fileFilter,
-          limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
-      }).single('image');
-      
-      // Process the upload if needed
-      upload(req, res, (err) => {
-          if (err instanceof multer.MulterError) {
-              console.error('Multer error:', err);
-              return res.status(400).json({ message: 'File upload error: ' + err.message });
-          } else if (err) {
-              console.error('Upload error:', err);
-              return res.status(500).json({ message: 'Server error: ' + err.message });
-          }
+      if (isImageUpdate) {
+          // Handle multipart form data with image
+          const upload = multer({
+              storage,
+              fileFilter,
+              limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
+          }).single('image');
           
-          // Continue with user update after image processing
-          processUserUpdate(req, res, req.file);
-      });
+          upload(req, res, (err) => {
+              if (err instanceof multer.MulterError) {
+                  console.error('Multer error:', err);
+                  return res.status(400).json({ message: 'File upload error: ' + err.message });
+              } else if (err) {
+                  console.error('Upload error:', err);
+                  return res.status(500).json({ message: 'Server error: ' + err.message });
+              }
+              
+              processUserUpdate(req, res, req.file);
+          });
+      } else {
+          // Handle JSON data without image
+          processUserUpdate(req, res, null);
+      }
   } catch (error) {
       console.error('Unexpected error:', error);
       return res.status(500).json({ message: 'Server error: ' + error.message });
@@ -975,35 +961,32 @@ export const updateUser = (req, res) => {
 function processUserUpdate(req, res, file) {
   try {
       const { userId } = req.params;
-      const { firstName, lastName } = req.body;
-      
-      // console.log('Processing update for user:', userId);
-      // console.log('Request body:', req.body);
-      
       const updateData = {};
-      updateData.firstName = firstName;
-      updateData.lastName = lastName;
       
-      // Only add image to updateData if file was uploaded
+      // Only add fields that are present in the request
+      if (req.body.firstName !== undefined && req.body.firstName !== '') {
+          updateData.firstName = req.body.firstName;
+      }
+      if (req.body.lastName !== undefined && req.body.lastName !== '') {
+          updateData.lastName = req.body.lastName;
+      }
+      
+      // Add image if file was uploaded
       if (file) {
           updateData.image = file.filename;
       }
 
-      console.log('Update data:', updateData);
-      
-      // You can uncomment this if you want to enforce at least one field
-      // if (Object.keys(updateData).length === 0) {
-      //     return res.status(400).json({ message: "At least one field must be updated." });
-      // }
+      // Only proceed if there are fields to update
+      if (Object.keys(updateData).length === 0) {
+          return res.status(400).json({ message: 'No valid fields to update' });
+      }
 
-      // Update user in the database
+      // Update user in database
       db.query("UPDATE users SET ? WHERE id = ?", [updateData, userId], (err, result) => {
           if (err) {
               console.error('Database error:', err);
               return res.status(500).json({ message: 'Error updating profile: ' + err.message });
           }
-          
-          console.log('Query result:', result);
 
           if (result.affectedRows > 0) {
               return res.status(200).json({
