@@ -981,8 +981,8 @@ function processUserUpdate(req, res, file) {
       // console.log('Request body:', req.body);
       
       const updateData = {};
-      if (firstName !== undefined) updateData.firstName = firstName;
-      if (lastName !== undefined) updateData.lastName = lastName;
+      updateData.firstName = firstName;
+      updateData.lastName = lastName;
       
       // Only add image to updateData if file was uploaded
       if (file) {
