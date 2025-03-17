@@ -967,9 +967,9 @@ function processUserUpdate(req, res, file) {
         updateData.image = file.filename;
     }
 
-    if (Object.keys(updateData).length === 0) {
-        return res.status(400).json({ message: "At least one field must be updated." });
-    }
+    // if (Object.keys(updateData).length === 0) {
+    //     return res.status(400).json({ message: "At least one field must be updated." });
+    // }
 
     // Update user in the database
     db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
