@@ -976,13 +976,14 @@ function processUserUpdate(req, res, file) {
   try {
       const { userId } = req.params;
       const { firstName, lastName } = req.body;
+      const updateData = { firstName, lastName };
       
-      console.log('Processing update for user:', userId);
-      console.log('Request body:', req.body);
+      // console.log('Processing update for user:', userId);
+      // console.log('Request body:', req.body);
       
-      const updateData = {};
-      if (firstName !== undefined) updateData.firstName = firstName;
-      if (lastName !== undefined) updateData.lastName = lastName;
+      // const updateData = {};
+      // if (firstName !== undefined) updateData.firstName = firstName;
+      // if (lastName !== undefined) updateData.lastName = lastName;
       
       // Only add image to updateData if file was uploaded
       if (file) {
@@ -997,7 +998,7 @@ function processUserUpdate(req, res, file) {
       // }
 
       // Update user in the database
-      db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
+      db.query("UPDATE users SET ? WHERE id = ?", [updateData, userId], (err, result) => {
           if (err) {
               console.error('Database error:', err);
               return res.status(500).json({ message: 'Error updating profile: ' + err.message });
