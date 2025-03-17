@@ -924,72 +924,103 @@ const fileFilter = (req, file, cb) => {
 
 // Combined Update User Function
 export const updateUser = (req, res) => {
-    // Check if image update is needed
-    const isImageUpdate = req.headers['x-update-image'] === 'true';
-    
-    // If no image update needed, process without multer
-    if (!isImageUpdate) {
-        processUserUpdate(req, res, null);
-        return;
-    }
-    
-    // Configure multer for image upload
-    const upload = multer({
-        storage,
-        fileFilter,
-        limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
-    }).single('image');
-    
-    // Process the upload if needed
-    upload(req, res, (err) => {
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({ message: 'File upload error: ' + err.message });
-        } else if (err) {
-            return res.status(500).json({ message: 'Server error: ' + err.message });
-        }
-        
-        // Continue with user update after image processing
-        processUserUpdate(req, res, req.file);
-    });
+  try {
+      // More robust header checking
+      let isImageUpdate = false;
+      
+      // Check header in multiple ways
+      if ('x-update-image' in req.headers) {
+          isImageUpdate = req.headers['x-update-image'] === 'true';
+      } else if ('X-Update-Image' in req.headers) {
+          isImageUpdate = req.headers['X-Update-Image'] === 'true';
+      }
+      
+      console.log('Request headers:', req.headers);
+      console.log('Image update flag:', isImageUpdate);
+      
+      // If no image update needed, process without multer
+      if (!isImageUpdate) {
+          console.log('Skipping image upload, processing update directly');
+          processUserUpdate(req, res, null);
+          return;
+      }
+      
+      // Configure multer for image upload
+      const upload = multer({
+          storage,
+          fileFilter,
+          limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
+      }).single('image');
+      
+      // Process the upload if needed
+      upload(req, res, (err) => {
+          if (err instanceof multer.MulterError) {
+              console.error('Multer error:', err);
+              return res.status(400).json({ message: 'File upload error: ' + err.message });
+          } else if (err) {
+              console.error('Upload error:', err);
+              return res.status(500).json({ message: 'Server error: ' + err.message });
+          }
+          
+          // Continue with user update after image processing
+          processUserUpdate(req, res, req.file);
+      });
+  } catch (error) {
+      console.error('Unexpected error:', error);
+      return res.status(500).json({ message: 'Server error: ' + error.message });
+  }
 };
 
 // Helper function to process the user update
 function processUserUpdate(req, res, file) {
-    const { userId } = req.params;
-    const { firstName, lastName } = req.body;
-    
-    const updateData = {};
-    if (firstName) updateData.firstName = firstName;
-    if (lastName) updateData.lastName = lastName;
-    
-    // Only add image to updateData if file was uploaded
-    if (file) {
-        updateData.image = file.filename;
-    }
+  try {
+      const { userId } = req.params;
+      const { firstName, lastName } = req.body;
+      
+      console.log('Processing update for user:', userId);
+      console.log('Request body:', req.body);
+      
+      const updateData = {};
+      if (firstName !== undefined) updateData.firstName = firstName;
+      if (lastName !== undefined) updateData.lastName = lastName;
+      
+      // Only add image to updateData if file was uploaded
+      if (file) {
+          updateData.image = file.filename;
+      }
 
-    // if (Object.keys(updateData).length === 0) {
-    //     return res.status(400).json({ message: "At least one field must be updated." });
-    // }
+      console.log('Update data:', updateData);
+      
+      // You can uncomment this if you want to enforce at least one field
+      // if (Object.keys(updateData).length === 0) {
+      //     return res.status(400).json({ message: "At least one field must be updated." });
+      // }
 
-    // Update user in the database
-    db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
-        if (err) {
-            console.error('Update error:', err);
-            return res.status(500).json({ message: 'Error updating profile' });
-        }
+      // Update user in the database
+      db.query('UPDATE users SET ? WHERE id = ?', [updateData, userId], (err, result) => {
+          if (err) {
+              console.error('Database error:', err);
+              return res.status(500).json({ message: 'Error updating profile: ' + err.message });
+          }
+          
+          console.log('Query result:', result);
 
-        if (result.affectedRows > 0) {
-            return res.status(200).json({
-                message: 'Profile updated successfully',
-                user: {
-                    ...updateData,
-                    image: file ? 
-                        `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${file.filename}` : 
-                        undefined
-                }
-            });
-        } else {
-            return res.status(404).json({ message: 'User not found' });
-        }
-    });
+          if (result.affectedRows > 0) {
+              return res.status(200).json({
+                  message: 'Profile updated successfully',
+                  user: {
+                      ...updateData,
+                      image: file ? 
+                          `https://mahjong-db.goldenrootscollectionsltd.com/imageUploads/mahjong-uploads/${file.filename}` : 
+                          undefined
+                  }
+              });
+          } else {
+              return res.status(404).json({ message: 'User not found' });
+          }
+      });
+  } catch (error) {
+      console.error('Error in processUserUpdate:', error);
+      return res.status(500).json({ message: 'Error updating profile: ' + error.message });
+  }
 }
